@@ -8,5 +8,5 @@ options(replace.assign=TRUE, useFancyQuotes=FALSE, show.signif.stars=FALSE, digi
 #  vignette("DVHmetrics")
 
 ## ----cWebApp, eval=FALSE--------------------------------------------
-#  shine()    # opens web browser with DVHmetrics web application
+#  runGUI()    # opens web browser with DVHmetrics web application
 

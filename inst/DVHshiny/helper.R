@@ -15,7 +15,7 @@ getStrIDs.DVHLst <- function(x, what=c("structure", "patient"), choices=FALSE) {
     strids <- if(what == "structure") {
         unique(vapply(x, function(y) y$structure, character(1)))
     } else {
-        unique(vapply(x, function(y) y$patID, character(1)))
+        unique(vapply(x, function(y) y$patID,     character(1)))
     }
 
     revList <- as.list(seq_along(sort(strids)))
@@ -30,11 +30,11 @@ getStrIDs.DVHLstLst <- function(x, what=c("structure", "patient"), choices=FALSE
     what <- match.arg(what)
 
     strids <- if(what == "structure") {
-        unique(c(sapply(x, function(y) {
-            vapply(y, function(z) z$structure, character(1)) })))
+        unique(unlist(lapply(x, function(y) {
+            lapply(y, function(z) z$structure) })))
     } else {
-        unique(c(sapply(x, function(y) {
-            vapply(y, function(z) z$patID, character(1)) })))
+        unique(unlist(lapply(x, function(y) {
+            lapply(y, function(z) z$patID) })))
     }
 
     revList  <- as.list(seq_along(sort(strids)))
@@ -47,7 +47,9 @@ getStrIDs.DVHLstLst <- function(x, what=c("structure", "patient"), choices=FALSE
 
 constrOut <- c("patID"="1", "structure"="2", "constraint"="3", "observed"="4",
                "compliance"="5", "deltaV"="6", "deltaVpc"="7", "deltaD"="8",
-               "deltaDpc"="9", "dstMin"="10", "ptMinD"="11", "ptMinV"="12")
+               "deltaDpc"="9", "dstMin"="10", "dstMinRel"="11",
+               "ptMinD"="12", "ptMinV"="13")
 constrOutInv <- c("1"="patID", "2"="structure", "3"="constraint", "4"="observed",
                   "5"="compliance", "6"="deltaV", "7"="deltaVpc", "8"="deltaD",
-                  "9"="deltaDpc", "10"="dstMin", "11"="ptMinD", "12"="ptMinV")
+                  "9"="deltaDpc", "10"="dstMin", "11"="dstMinRel",
+                  "12"="ptMinD", "13"="ptMinV")

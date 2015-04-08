@@ -40,7 +40,11 @@ parseCadplan <- function(x, planInfo=FALSE) {
         elem <- sub("^.+?:[[:blank:]]+([[:alnum:][:punct:]]+[[:blank:]]*$)", "\\1", line, perl=TRUE)
         num  <- trimWS(elem)
         if(percent && any(grepl("%", line))) {
-            doseRx * as.numeric(num)/100
+            if(!missing(doseRx)) {
+                doseRx * as.numeric(num)/100
+            } else {
+                NA_real_
+            }
         } else {
             as.numeric(num)
         }
@@ -91,7 +95,8 @@ parseCadplan <- function(x, planInfo=FALSE) {
         structure <- getElem("^Histogram.*:", strct)
 
         isoDoseRx0 <- getElem("^% for dose[[:blank:]]*:", strct)
-        isoDoseRx  <- if(isoDoseRx0 != "not defined") { # check if sum plan
+        ## check if sum plan
+        isoDoseRx  <- if((length(isoDoseRx0) > 0) && (isoDoseRx0 != "not defined")) {
             as.numeric(isoDoseRx0)
         } else {                                        # sum plan -> use plan info?
             if(tolower(planInfo) == "doserx") {
@@ -104,7 +109,8 @@ parseCadplan <- function(x, planInfo=FALSE) {
         }
 
         doseRx0 <- getElem("^Prescr\\. dose.*:", strct)
-        doseRx  <- if(doseRx0 != "not defined") {          # check if sum plan
+        ## check if sum plan
+        doseRx  <- if((length(doseRx0) > 0) && (doseRx0 != "not defined")) {
             getDose("^Prescr\\. dose.*:", strct)
         } else {                                        # sum plan
             ## doseRx is encoded in plan name
@@ -147,7 +153,7 @@ parseCadplan <- function(x, planInfo=FALSE) {
         colHead  <- grep("DOSE[[:blank:]]*\\((%|GY|CGY)\\).+VOLUME", strct,
                          ignore.case=TRUE, perl=TRUE)
         dvhStart <- colHead+1            # first numeric line of DVH
-        dvhLen   <- length(strct) - dvhStart
+        dvhLen   <- length(strct) - dvhStart + 1
         if((length(dvhLen) < 1L) || dvhLen < 1L) {
             stop("No DVH data found")
         }
@@ -241,7 +247,7 @@ parseCadplan <- function(x, planInfo=FALSE) {
         ## convert differential DVH to cumulative
         ## and add differential DVH separately
         if(info$DVHtype == "differential") {
-            DVH$dvh     <- dvhConvert(dvh, toType="cumulative", toDoseUnit="asis")
+            DVH$dvh     <- convertDVH(dvh, toType="cumulative", toDoseUnit="asis")
             DVH$dvhDiff <- dvh
         }
 
@@ -253,7 +259,7 @@ parseCadplan <- function(x, planInfo=FALSE) {
     ## list of DVH data frames with component name = structure
     info <- list(patID=patID, patName=patName, plan=plan, date=DVHdate, DVHtype=DVHtype)
     dvhL <- lapply(structList, getDVH, info)
-    dvhL <- Filter(function(y) !is.null(y), dvhL)
+    dvhL <- Filter(Negate(is.null), dvhL)
     names(dvhL) <- sapply(dvhL, function(y) y$structure)
     if(length(unique(names(dvhL))) < length(dvhL)) {
         warning("Some structures have the same name - this can lead to problems")

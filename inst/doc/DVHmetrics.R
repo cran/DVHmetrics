@@ -71,6 +71,20 @@ met                               # print the calculated results
 ## ----cMetricsSave3, eval=FALSE--------------------------------------
 #  saveMetric(met, file="c:/folder/metrics.txt", quote=TRUE)
 
+## ----cDmean1--------------------------------------------------------
+dmean <- getDMEAN(dataMZ[[1]])
+subset(dmean, select=c(doseAvg, doseMed, doseMin, doseMax))
+
+## ----cDmean2--------------------------------------------------------
+# note that different tissues should have different parameter values,
+# this is just for demonstration purposes
+getEUD(dataMZ[[1]], EUDa=2)
+
+## ----cDmean3--------------------------------------------------------
+# note that different tissues should have different parameter values,
+# this is just for demonstration purposes
+getNTCP(dataMZ[[1]], NTCPtd50=40, NTCPm=0.6, NTCPn=0.5, NTCPtype="probit")
+
 ## ----cPlots1, out.width='3in'---------------------------------------
 showDVH(dataMZ, byPat=TRUE)
 
@@ -115,4 +129,9 @@ showConstraint(dataMZ, constr=dataConstr, byPat=TRUE)
 
 ## ----cConstrShow3, eval=FALSE---------------------------------------
 #  saveDVH(sc, file="c:/folder/dvhConstraint.pdf")
+
+## ----cBED1, eval=FALSE----------------------------------------------
+#  getBED(D=50, fd=2.5, ab=c(2, 3, 4))
+#  getEQD2(D=50, fd=2.5, ab=c(2, 3, 4))
+#  getIsoEffD(D1=50, fd1=2.5, fd2=3, ab=c(2, 3, 4))
 

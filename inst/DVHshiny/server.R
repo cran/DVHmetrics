@@ -7,6 +7,9 @@ maxNID <- 100
 shinyServer(function(input, output) {
     source("helper.R")
 
+    ## directory where current DVH data is saved
+    DVHdir <- tempdir()
+
     ## reactive conductor
     DVH <- reactive({
         input$applyData
@@ -15,11 +18,20 @@ shinyServer(function(input, output) {
                 dataMZ
             } else if(input$DVHin == '2') {
                 if(!is.null(input$DVHupload)) {
-                    types <- c('1'="Eclipse", '2'="Cadplan", '3'="Masterplan")
+                    types <- c('1'="Eclipse", '2'="Cadplan", '3'="Masterplan", '4'="Pinnacle")
                     plans <- c('1'="none",    '2'="doseRx")
-                    argL  <- list(x=input$DVHupload$datapath,
-                                  type=types[input$DVHtype],
-                                  planInfo=plans[input$DVHplanInfo])
+                    argL  <- if(input$DVHadd && file.exists("DVHprev.rds")) {
+                        setwd(DVHdir)
+                        add <- readRDS("DVHprev.Rds")
+                        list(x=input$DVHupload$datapath,
+                             type=types[input$DVHtype],
+                             planInfo=plans[input$DVHplanInfo],
+                             add=add)
+                    } else {
+                        list(x=input$DVHupload$datapath,
+                             type=types[input$DVHtype],
+                             planInfo=plans[input$DVHplanInfo])
+                    }
                     do.call(readDVH, argL)
                 } else {
                     NULL
@@ -33,7 +45,10 @@ shinyServer(function(input, output) {
                 NULL
             }
 
-            return(list(DVH=DVHdata, DVHbyStruct=DVHdataByStruct))
+            DvHcurr <- list(DVH=DVHdata, DVHbyStruct=DVHdataByStruct)
+            setwd(DVHdir)
+            saveRDS(DvHcurr$DVH, file="DVHprev.rds")
+            return(DvHcurr)
         })
     })
 
@@ -126,6 +141,17 @@ shinyServer(function(input, output) {
         } else {
             NULL
         }
+        interp  <- c("linear", "spline", "ksmooth")[as.numeric(input$metrInterp)]
+        EUDa    <- if(input$metrEUDa  != "") { as.numeric(input$metrEUDa)  } else { NULL }
+        EUDfn   <- if(input$metrEUDfn != "") { as.numeric(input$metrEUDfn) } else { NULL }
+        EUDab   <- if(input$metrEUDab != "") { as.numeric(input$metrEUDab) } else { NULL }
+
+        NTCPtype    <- c("probit", "logit", "poisson")[as.numeric(input$metrNTCPtype)]
+        NTCPtd50    <- if(input$metrNTCPtd50    != "") { as.numeric(input$metrNTCPtd50)    } else { NULL }
+        NTCPn       <- if(input$metrNTCPn       != "") { as.numeric(input$metrNTCPn)       } else { NULL }
+        NTCPm       <- if(input$metrNTCPm       != "") { as.numeric(input$metrNTCPm)       } else { NULL }
+        NTCPgamma50 <- if(input$metrNTCPgamma50 != "") { as.numeric(input$metrNTCPgamma50) } else { NULL }
+
         sortSel <- input$metrSortBy
         sortBy <- if(length(sortSel) > 0) {
             sortOpts[sortSel]
@@ -137,8 +163,12 @@ shinyServer(function(input, output) {
                          metric=selMetrics,
                          patID=paste0("^", selPat, "$"),
                          structure=paste0("^", selStruct, "$"),
-                         sortBy=sortBy)
-            argL <- Filter(function(x) !is.null(x), argL)
+                         sortBy=sortBy,
+                         interp=interp,
+                         EUDa=EUDa, EUDfn=EUDfn, EUDab=EUDab,
+                         NTCPtype=NTCPtype, NTCPtd50=NTCPtd50, NTCPn=NTCPn, NTCPm=NTCPm, NTCPgamma50=NTCPgamma50,
+                          TCPtype=NTCPtype, TCPtcd50=NTCPtd50,  TCPn=NTCPn,  TCPm=NTCPm,  TCPgamma50=NTCPgamma50)
+            argL <- Filter(Negate(is.null), argL)
             metr <- do.call(getMetric, argL)
             metr$observed <- round(metr$observed, 2)
             metr
@@ -177,6 +207,17 @@ shinyServer(function(input, output) {
             } else {
                 NULL
             }
+            interp  <- c("linear", "spline", "ksmooth")[as.numeric(input$metrInterp)]
+            EUDa    <- if(input$metrEUDa  != "") { as.numeric(input$metrEUDa)  } else { NULL }
+            EUDfn   <- if(input$metrEUDfn != "") { as.numeric(input$metrEUDfn) } else { NULL }
+            EUDab   <- if(input$metrEUDab != "") { as.numeric(input$metrEUDab) } else { NULL }
+
+            NTCPtype    <- c("probit", "logit", "poisson")[as.numeric(input$metrNTCPtype)]
+            NTCPtd50    <- if(input$metrNTCPtd50    != "") { as.numeric(input$metrNTCPtd50)    } else { NULL }
+            NTCPn       <- if(input$metrNTCPn       != "") { as.numeric(input$metrNTCPn)       } else { NULL }
+            NTCPm       <- if(input$metrNTCPm       != "") { as.numeric(input$metrNTCPm)       } else { NULL }
+            NTCPgamma50 <- if(input$metrNTCPgamma50 != "") { as.numeric(input$metrNTCPgamma50) } else { NULL }
+
             sortSel <- input$metrSortBy
             sortBy <- if(length(sortSel) > 0) {
                 sortOpts[sortSel]
@@ -185,10 +226,14 @@ shinyServer(function(input, output) {
             }
             argL <- list(x=dvh,
                          metric=selMetrics,
-                         patID=selPat,
-                         structure=selStruct,
-                         sortBy=sortBy)
-            argL <- Filter(function(x) !is.null(x), argL)
+                         patID=paste0("^", selPat, "$"),
+                         structure=paste0("^", selStruct, "$"),
+                         sortBy=sortBy,
+                         interp=interp,
+                         EUDa=EUDa, EUDfn=EUDfn, EUDab=EUDab,
+                         NTCPtype=NTCPtype, NTCPtd50=NTCPtd50, NTCPn=NTCPn, NTCPgamma50=NTCPgamma50,
+                          TCPtype=NTCPtype, TCPtcd50=NTCPtd50,  TCPn=NTCPn,  TCPgamma50=NTCPgamma50)
+            argL <- Filter(Negate(is.null), argL)
             metr <- do.call(getMetric, argL)
             dec <- c('1'=".",  '2'=",")[input$saveMetrDec]
             sep <- c('1'="\t", '2'=" ", '3'=",", '4'=";")[input$saveMetrSep]
@@ -239,7 +284,7 @@ shinyServer(function(input, output) {
         }
 
         ## weed out NULL components, convert the list to a tagList and return
-        plotOutputL <- Filter(function(x) !is.null(x), plotOutputL)
+        plotOutputL <- Filter(Negate(is.null), plotOutputL)
         do.call(tagList, plotOutputL)
     })
 
@@ -266,16 +311,18 @@ shinyServer(function(input, output) {
                 } else {
                     ## 1 diagram per patient/structure
                     x <- if(byPat) {
-                        dvh$DVH[[localI]]
+                        sharedNames <- intersect(selPat, names(dvh$DVH))
+                        dvh$DVH[sharedNames][[localI]]
                     } else {
-                        dvh$DVHbyStruct[[localI]]
+                        sharedNames <- intersect(selStruct, names(dvh$DVHbyStruct))
+                        dvh$DVHbyStruct[sharedNames][[localI]]
                     }
 
                     showDVH(x=x,
                             cumul=cumul,
                             byPat=byPat,
-                            patID=selPat,
-                            structure=selStruct,
+                            patID=paste0("^", selPat, "$"),
+                            structure=paste0("^", selStruct, "$"),
                             thresh=input$plotThreshVol,
                             rel=rel)
                 }
@@ -290,9 +337,9 @@ shinyServer(function(input, output) {
                 ## 1 diagram per patient/structure
                 ## restrict DVH and constr to the same IDs/structures
                 xConstrSub <- if(byPat) {
-                    harmoConstrDVH(dvh$DVH,         constr=constr, byPat=byPat)
+                    DVHmetrics:::harmoConstrDVH.DVHLstLst(dvh$DVH,         constr=constr, byPat=byPat)
                 } else {
-                    harmoConstrDVH(dvh$DVHbyStruct, constr=constr, byPat=byPat)
+                    DVHmetrics:::harmoConstrDVH.DVHLstLst(dvh$DVHbyStruct, constr=constr, byPat=byPat)
                 }
 
                 if(is.null(constr) || (length(xConstrSub$x) < localI)) {
@@ -326,8 +373,8 @@ shinyServer(function(input, output) {
             argL <- list(x=x,
                          cumul=cumul,
                          byPat=byPat,
-                         patID=selPat,
-                         structure=selStruct,
+                         patID=paste0("^", selPat, "$"),
+                         structure=paste0("^", selStruct, "$"),
                          thresh=input$plotThreshVol,
                          rel=rel)
             pdf(file, width=7, height=5)
@@ -341,8 +388,8 @@ shinyServer(function(input, output) {
         argL <- list(x=dvh,
                      cumul=cumul,
                      byPat=byPat,
-                     patID=selPat,
-                     structure=selStruct,
+                     patID=paste0("^", selPat, "$"),
+                     structure=paste0("^", selStruct, "$"),
                      thresh=thresh,
                      rel=rel)
         jpeg(fName, quality=100, width=700, height=500)
@@ -442,11 +489,22 @@ shinyServer(function(input, output) {
     })
 
     output$constraints <- renderDataTable({
-        constr   <- DVHconstr()
-        dvh      <- DVH()$DVH
-        outSel   <- constrOutInv[input$constrOut]
-        sortOpts <- c('1'="compliance", '2'="structure", '3'="constraint",
-                      '4'="patID", '5'="deltaV", '6'="deltaD", '7'="observed")
+        constr <- DVHconstr()
+        dvh    <- DVH()$DVH
+        outSel <- constrOutInv[input$constrOut]
+        interp <- c("linear", "spline", "ksmooth")[as.numeric(input$constrInterp)]
+        EUDa   <- if(input$constrEUDa  != "") { as.numeric(input$constrEUDa)  } else { NULL }
+        EUDfn  <- if(input$constrEUDfn != "") { as.numeric(input$constrEUDfn) } else { NULL }
+        EUDab  <- if(input$constrEUDab != "") { as.numeric(input$constrEUDab) } else { NULL }
+
+        NTCPtype    <- c("probit", "logit", "poisson")[as.numeric(input$constrNTCPtype)]
+        NTCPtd50    <- if(input$constrNTCPtd50    != "") { as.numeric(input$constrNTCPtd50)    } else { NULL }
+        NTCPn       <- if(input$constrNTCPn       != "") { as.numeric(input$constrNTCPn)       } else { NULL }
+        NTCPm       <- if(input$constrNTCPm       != "") { as.numeric(input$constrNTCPm)       } else { NULL }
+        NTCPgamma50 <- if(input$constrNTCPgamma50 != "") { as.numeric(input$constrNTCPgamma50) } else { NULL }
+
+        sortOpts <- c('1'="compliance", '2'="dstMin", '3'="deltaV", '4'="deltaD",
+                      '5'="observed", '6'="patID", '7'="structure", '8'="constraint")
         sortSel  <- input$constrSortBy
         sortBy   <- if(length(sortSel) > 0) {
             sortOpts[sortSel]
@@ -455,12 +513,19 @@ shinyServer(function(input, output) {
         }
 
         if(!is.null(constr) && !is.null(dvh)) {
-            x <- checkConstraint(dvh, constr=constr, byPat=TRUE,
-                                 semSign=input$constrSemSign, sortBy=sortBy)
-            x$observed <- round(x$observed, 2)
-            x$deltaVpc <- round(x$deltaVpc, 2)
-            x$deltaDpc <- round(x$deltaDpc, 2)
-            x$dstMin   <- round(x$dstMin,   2)
+            argL <- list(x=dvh,
+                         constr=constr, byPat=TRUE, interp=interp,
+                         semSign=input$constrSemSign, sortBy=sortBy,
+                         EUDa=EUDa, EUDfn=EUDfn, EUDab=EUDab,
+                         NTCPtype=NTCPtype, NTCPtd50=NTCPtd50, NTCPn=NTCPn, NTCPm=NTCPm, NTCPgamma50=NTCPgamma50,
+                          TCPtype=NTCPtype, TCPtcd50=NTCPtd50,  TCPn=NTCPn,  TCPm=NTCPm,  TCPgamma50=NTCPgamma50)
+            argL <- Filter(Negate(is.null), argL)
+            x <- do.call(checkConstraint, argL)
+            x$observed  <- round(x$observed,  2)
+            x$deltaVpc  <- round(x$deltaVpc,  2)
+            x$deltaDpc  <- round(x$deltaDpc,  2)
+            x$dstMin    <- round(x$dstMin,    2)
+            x$dstMinRel <- round(x$dstMinRel, 2)
             x[ , outSel]
         } else {
             NULL
@@ -487,9 +552,9 @@ shinyServer(function(input, output) {
         constr <- DVHconstr()
         byPat  <- input$constrByPat == "1"
         xConstrSub <- if(byPat) {
-            harmoConstrDVH(dvh$DVH,         constr=constr, byPat=byPat)
+            DVHmetrics:::harmoConstrDVH.DVHLstLst(dvh$DVH,         constr=constr, byPat=byPat)
         } else {
-            harmoConstrDVH(dvh$DVHbyStruct, constr=constr, byPat=byPat)
+            DVHmetrics:::harmoConstrDVH.DVHLstLst(dvh$DVHbyStruct, constr=constr, byPat=byPat)
         }
 
         plotOutputL <- lapply(seq_along(xConstrSub$x), function(i) {
@@ -502,9 +567,26 @@ shinyServer(function(input, output) {
     output$saveConstrTxt <- downloadHandler(
         filename=function() { "constraints.txt" },
         content=function(file) {
-            constr <- checkConstraint(DVH()$DVH, constr=DVHconstr())
-            dec <- c('1'=".",  '2'=",")[input$saveConstrDec]
-            sep <- c('1'="\t", '2'=" ", '3'=",", '4'=";")[input$saveConstrSep]
+            interp <- c("linear", "spline", "ksmooth")[as.numeric(input$constrInterp)]
+            EUDa   <- if(input$constrEUDa  != "") { as.numeric(input$constrEUDa)  } else { NULL }
+            EUDfn  <- if(input$constrEUDfn != "") { as.numeric(input$constrEUDfn) } else { NULL }
+            EUDab  <- if(input$constrEUDab != "") { as.numeric(input$constrEUDab) } else { NULL }
+    
+            NTCPtype    <- c("probit", "logit", "poisson")[as.numeric(input$constrNTCPtype)]
+            NTCPtd50    <- if(input$constrNTCPtd50    != "") { as.numeric(input$constrNTCPtd50)    } else { NULL }
+            NTCPn       <- if(input$constrNTCPn       != "") { as.numeric(input$constrNTCPn)       } else { NULL }
+            NTCPm       <- if(input$constrNTCPm       != "") { as.numeric(input$constrNTCPm)       } else { NULL }
+            NTCPgamma50 <- if(input$constrNTCPgamma50 != "") { as.numeric(input$constrNTCPgamma50) } else { NULL }
+
+            argL <- list(x=DVH()$DVH,
+                         constr=DVHconstr(), interp=interp,
+                         EUDa=EUDa, EUDfn=EUDfn, EUDab=EUDab,
+                         NTCPtype=NTCPtype, NTCPtd50=NTCPtd50, NTCPn=NTCPn, NTCPm=NTCPm, NTCPgamma50=NTCPgamma50,
+                          TCPtype=NTCPtype, TCPtcd50=NTCPtd50,  TCPn=NTCPn,  TCPm=NTCPm,  TCPgamma50=NTCPgamma50)
+            argL   <- Filter(Negate(is.null), argL)
+            constr <- do.call(checkConstraint, argL)
+            dec    <- c('1'=".",  '2'=",")[input$saveConstrDec]
+            sep    <- c('1'="\t", '2'=" ", '3'=",", '4'=";")[input$saveConstrSep]
             write.table(constr, file=file, dec=dec, sep=sep, row.names=FALSE)
         },
         contentType='text/plain' # MIME type
@@ -551,7 +633,7 @@ shinyServer(function(input, output) {
                 dvh$DVHbyStruct
             }
 
-            xConstrSub <- harmoConstrDVH(x, constr=constr, byPat=byPat)
+            xConstrSub <- DVHmetrics:::harmoConstrDVH.DVHLstLst(x, constr=constr, byPat=byPat)
             nFiles     <- length(xConstrSub$x)
 
             ## write all JPEGs into temporary directory and zip them
@@ -572,4 +654,73 @@ shinyServer(function(input, output) {
         },
         contentType = "application/zip"
     )
+    
+    output$BED <- renderPrint({
+        if(input$BEDtype %in% c('1', '2')) {
+            D <- if(input$BED_BED_D  != "") {
+                as.numeric(strsplit(input$BED_BED_D, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            fd <- if(input$BED_BED_FD != "") {
+                as.numeric(strsplit(input$BED_BED_FD, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            fn <- if(input$BED_BED_FN != "") {
+                as.numeric(strsplit(input$BED_BED_FN, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            ab <- if(input$BED_BED_AB != "") {
+                as.numeric(strsplit(input$BED_BED_AB, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+        } else if(input$BEDtype == '3') {
+            D1 <- if(input$BED_IED_D1  != "") {
+                as.numeric(strsplit(input$BED_IED_D1, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            D2 <- if(input$BED_IED_D2  != "") {
+                as.numeric(strsplit(input$BED_IED_D2, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            fd1 <- if(input$BED_IED_FD1 != "") {
+                as.numeric(strsplit(input$BED_IED_FD1, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            fd2 <- if(input$BED_IED_FD2 != "") {
+                as.numeric(strsplit(input$BED_IED_FD2, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            fn1 <- if(input$BED_IED_FN1 != "") {
+                as.numeric(strsplit(input$BED_IED_FN1, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            fn2 <- if(input$BED_IED_FN2 != "") {
+                as.numeric(strsplit(input$BED_IED_FN2, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+            ab <- if(input$BED_IED_AB != "") {
+                as.numeric(strsplit(input$BED_IED_AB, "[[:blank:]]")[[1]])
+            } else {
+                NULL
+            }
+        }
+
+        if(input$BEDtype == '1') {
+            getBED(D=D, fd=fd, fn=fn, ab=ab)
+        } else if(input$BEDtype == '2') {
+            getEQD2(D=D, fd=fd, fn=fn, ab=ab)
+        } else if(input$BEDtype == '3') {
+            getIsoEffD(D1=D1, D2=D2, fd1=fd1, fd2=fd2, fn1=fn1, fn2=fn2, ab=ab)
+        }
+    })
 })
