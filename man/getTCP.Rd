@@ -18,14 +18,14 @@ getTCP(x, TCPtcd50=NULL, TCPm=NULL, TCPn=NULL, TCPgamma50=NULL,
   \item{EUDa}{If gEUD should be based on EQD2: Exponential parameter a.}
   \item{EUDfn}{If gEUD should be based on EQD2: Number of fractions.}
   \item{EUDab}{If gEUD should be based on EQD2: alpha/beta ratio for the relevant tissue.}
-  \item{TCPtype}{\code{"probit"} - Lyman probit model, \code{"logit"} - Niemierko logit model, \code{"poisson"} - Kaellman Poisson model.}
+  \item{TCPtype}{\code{"probit"} - Lyman probit model, \code{"logit"} - Niemierko logit model, \code{"poisson"} - Kaellman Poisson (relative seriality) model.}
   \item{...}{Ignored. Used to catch additional arguments passed from \code{\link[DVHmetrics]{getMetric}}.}
 }
 \details{
 For DVH reduction, gEUD is used. This is equivalent to the Kutcher-Burman DVH reduction scheme.
 }
 \value{
-The (vector of) TCP value(s)
+A data frame with variables \code{TCP}, \code{patID}, and \code{structure}.
 }
 \references{
 Kaellman, P., Agren, A., & Brahme, A. (1992). Tumor and normal tissue responses to fractionated non-uniform dose delivery. International Journal of Radiation Biology, 62(2), 249-262.

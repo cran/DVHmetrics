@@ -49,8 +49,10 @@ function(x, metric, patID, structure,
             cf * x$dvh[ , "dose"]
         }
 
-        if(interp == "linear") {  # rule=1 -> no interpolation beyond bounds
-            res <- try(approx(vol, dose, val, method="linear", rule=1)$y)
+        if(interp == "linear") {
+            ## rule=1 -> no interpolation beyond bounds
+            ## ties=max because of DVHs with few unique nodes
+            res <- try(approx(vol, dose, val, method="linear", rule=1, ties=max)$y)
             if(!inherits(res, "try-error")) {
                 res
             } else {
@@ -67,7 +69,7 @@ function(x, metric, patID, structure,
                 NA_real_
             }
         } else if(interp == "spline") {  # does interpolation beyond bounds
-            sfun <- splinefun(vol, dose, method="monoH.FC")
+            sfun <- splinefun(vol, dose, method="monoH.FC", ties=max)
             sfun(val)
         }
     }
@@ -77,10 +79,11 @@ function(x, metric, patID, structure,
     getVolume <- function(val, type="relative", unitRef, unitDV) {
         if(type == "relative") {         # given dose is relative
             dose <- x$dvh[ , "doseRel"]
-            val  <- val/100
 
             ## check if max dose is smaller than requested % of prescribed dose
-            if(val > 1) {
+            ## do this here -> while there is approx(..., yright=0)
+            ## nothing of that sort exists for spline()
+            if(val > 100) {
                 warning("max dose is less than requested dose")
                 return(0)
             }
@@ -102,7 +105,7 @@ function(x, metric, patID, structure,
         }
 
         if(interp == "linear") {  # rule=1 -> no interpolation beyond bounds
-            res <- try(approx(dose, vol, val, method="linear", rule=1)$y)
+            res <- try(approx(dose, vol, val, method="linear", rule=1, yright=0)$y)
             if(!inherits(res, "try-error")) {
                 res
             } else {
@@ -138,7 +141,7 @@ function(x, metric, patID, structure,
         if(!pm$valid) {
             return(NA_real_)
         } else if(pm$DV == "D") {              # report a dose
-            if(pm$valRef %in% c("MIN", "MAX", "MEAN", "MEDIAN", "RX", "SD", "EUD", "EUD2", "NTCP", "TCP")) {
+            if(pm$valRef %in% c("MIN", "MAX", "MEAN", "MEDIAN", "RX", "SD", "EUD", "NTCP", "TCP")) {
                 cf <- if(!is.na(pm$unitDV)) {
                     getConvFac(paste0(x$doseUnit, "2", pm$unitDV))
                 } else {
@@ -168,12 +171,12 @@ function(x, metric, patID, structure,
                     mmmrs$doseRx
                 } else if(pm$valRef == "SD") {
                     mmmrs$doseSD
-                } else if(pm$valRef %in% c("EUD", "EUD2")) {
-                    getEUD(x, ...)
+                } else if(pm$valRef == "EUD") {
+                    getEUD(x, ...)$EUD
 				} else if(pm$valRef == "NTCP") {
-					getNTCP(x, ...)
+					getNTCP(x, ...)$NTCP
 				} else if(pm$valRef == "TCP") {
-					getTCP(x, ...)
+					getTCP(x, ...)$TCP
                 } else {
                     warning("Unknown metric reference value")
                     NA_real_

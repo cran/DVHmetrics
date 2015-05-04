@@ -1,24 +1,13 @@
 #####---------------------------------------------------------------------------
-## implement recycling rule for function arguments
+## EQD2 linear quadratic model
 #####---------------------------------------------------------------------------
 
-recycle <-
-function(...) {
-    dots <- list(...)
-    maxL <- max(sapply(dots, length))
-    lapply(dots, rep, length=maxL)
-}
-
-#####---------------------------------------------------------------------------
-## BED linear quadratic model
-#####---------------------------------------------------------------------------
-
-getBED <-
+getEQD2 <-
 function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
-    UseMethod("getBED")
+    UseMethod("getEQD2")
 }
 
-getBED.default <-
+getEQD2.default <-
 function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
     stopifnot(!is.null(fd), !is.null(ab))
 
@@ -32,9 +21,10 @@ function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
     keepFD <- fd > 0
     if(any(!keepAB)) { warning("'ab' must be > 0") }
     if(any(!keepFD)) { warning("'fd' must be > 0") }
+
     if(is.null(D)) {
         if(is.null(fn)) {
-            stop("Either 'D' or 'fn' must be specified")
+            stop("Either 'D' or 'fn' must be given")
         } else {
             fn <- as.integer(fn)
             keepFN <- fn > 0
@@ -45,19 +35,22 @@ function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
     } else {
         if(!is.null(fn)) { warning("'fn' is ignored if 'D' is given") }
         keepD <- D > 0
-        if(any(!keepD)) { warning("'D' must be > 0") }
+        if(any(!keepD))  { warning("'D' must be > 0") }
         keep <- keepD & keepAB & keepFD
     }
 
-    BED <- rep(NA_real_, times=length(D))
-    BED[keep] <- D[keep] * (1 + (fd[keep]/ab[keep]))
-    data.frame(BED=BED, fractDose=fd, ab=ab)
+    BED  <- D * (1 + (fd/ab))
+    EQD2 <- rep(NA_real_, times=length(D))
+    ## EQD2 <- D * (fd + ab) / (2 + ab)
+    EQD2[keep] <- BED[keep] / (1 + (2/ab[keep]))
+
+    data.frame(EQD2=EQD2, fractDose=fd, ab=ab)
 }
 
-getBED.DVHs <-
+getEQD2.DVHs <-
 function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
     stopifnot(!is.null(D), !is.null(fd))
-
+    
     if(!is.null(fn)) { warning("'fn' is ignored for the 'DVHs' method") }
     if(length(fd) > 1L) {
         warning("Only first element of 'fd' will be used")
@@ -69,26 +62,26 @@ function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
         ab <- ab[1]
     }
 
-    D$dvh[ , "dose"] <- getBED(D=D$dvh[ , "dose"], fd=fd, ab=ab)$BED
+    D$dvh[ , "dose"] <- getEQD2(D=D$dvh[ , "dose"], fd=fd, ab=ab)$EQD2
     D
 }
 
-getBED.DVHLst <-
+getEQD2.DVHLst <-
 function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
     stopifnot(!is.null(D))
 
-    BEDl <- Map(getBED, D, fd=list(fd), fn=list(fn), ab=list(ab))
-    class(BEDl) <- "DVHLst"
-    attr(BEDl, which="byPat") <- attributes(D)$byPat
-    BEDl
+    EQD2l <- Map(getEQD2, D, fd=list(fd), fn=list(fn), ab=list(ab))
+    class(EQD2l) <- "DVHLst"
+    attr(EQD2l, which="byPat") <- attributes(D)$byPat
+    EQD2l
 }
 
-getBED.DVHLstLst <-
+getEQD2.DVHLstLst <-
 function(D=NULL, fd=NULL, fn=NULL, ab=NULL) {
     stopifnot(!is.null(D))
 
-    BEDll <- Map(getBED, D, fd=list(fd), fn=list(fn), ab=list(ab))
-    class(BEDll) <- "DVHLstLst"
-    attr(BEDll, which="byPat") <- attributes(D)$byPat
-    BEDll
+    EQD2ll <- Map(getEQD2, D, fd=list(fd), fn=list(fn), ab=list(ab))
+    class(EQD2ll) <- "DVHLstLst"
+    attr(EQD2ll, which="byPat") <- attributes(D)$byPat
+    EQD2ll
 }

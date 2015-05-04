@@ -130,8 +130,11 @@ showConstraint(dataMZ, constr=dataConstr, byPat=TRUE)
 ## ----cConstrShow3, eval=FALSE---------------------------------------
 #  saveDVH(sc, file="c:/folder/dvhConstraint.pdf")
 
-## ----cBED1, eval=FALSE----------------------------------------------
-#  getBED(D=50, fd=2.5, ab=c(2, 3, 4))
-#  getEQD2(D=50, fd=2.5, ab=c(2, 3, 4))
-#  getIsoEffD(D1=50, fd1=2.5, fd2=3, ab=c(2, 3, 4))
+## ----cBED1----------------------------------------------------------
+getBED(D=50, fd=2.5, ab=c(2, 3, 4))
+getEQD2(D=50, fd=2.5, ab=c(2, 3, 4))
+getIsoEffD(D1=70, fd1=2, fd2=3, ab=c(3.5, 10))
+
+## ----cBED2----------------------------------------------------------
+getEQD2(D=dataMZ[[c(1, 1)]], fd=2.5, ab=3)
 
