@@ -18,18 +18,21 @@ shinyServer(function(input, output) {
                 dataMZ
             } else if(input$DVHin == '2') {
                 if(!is.null(input$DVHupload)) {
-                    types <- c('1'="Eclipse", '2'="Cadplan", '3'="Masterplan", '4'="Pinnacle")
-                    plans <- c('1'="none",    '2'="doseRx")
-                    argL  <- if(input$DVHadd && file.exists("DVHprev.rds")) {
+                    types <- c('1'="Eclipse", '2'="Cadplan", '3'="Masterplan",
+                               '4'="Pinnacle", '5'="Monaco", '6'="HiArt")
+                    plans <- c('1'="none", '2'="doseRx")
+                    argL  <- if(("DVHadd" %in% input$DVHreadOpts) && file.exists("DVHprev.rds")) {
                         setwd(DVHdir)
                         add <- readRDS("DVHprev.Rds")
                         list(x=input$DVHupload$datapath,
                              type=types[input$DVHtype],
+                             courseAsID=("DVHcourse" %in% input$DVHreadOpts),
                              planInfo=plans[input$DVHplanInfo],
                              add=add)
                     } else {
                         list(x=input$DVHupload$datapath,
                              type=types[input$DVHtype],
+                             courseAsID=("DVHcourse" %in% input$DVHreadOpts),
                              planInfo=plans[input$DVHplanInfo])
                     }
                     do.call(readDVH, argL)

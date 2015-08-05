@@ -60,7 +60,7 @@ function(x, cumul=TRUE, byPat=TRUE, patID=NULL, structure=NULL,
     } else {
         1.1*c(guessX,
               max(vapply(x, function(y) {
-              max(y$dvh[ , "dose"], na.rm=TRUE) }, numeric(1))))
+                  max(y$dvh[ , "dose"], na.rm=TRUE) }, numeric(1))))
     }
     
     ## title string
@@ -74,6 +74,11 @@ function(x, cumul=TRUE, byPat=TRUE, patID=NULL, structure=NULL,
     dvhDFL <- if(cumul) {
         ## cumulative DVH
         lapply(x, function(y) {
+            if(is.null(y$dvh)) {
+                y$dvh <- convertDVH(y$dvhDiff, toType="cumulative",
+                                    toDoseUnit="asis")
+            }
+
             data.frame(y$dvh, patID=y$patID, structure=y$structure,
                        stringsAsFactors=FALSE)
         })
@@ -91,8 +96,26 @@ function(x, cumul=TRUE, byPat=TRUE, patID=NULL, structure=NULL,
     }
     
     dvhDF <- do.call("rbind", dvhDFL)
+    
+    ## check if relative volume is available if requested
+    if(rel && all(is.na(dvhDF$volumeRel))) {
+        warning("All relative volumes are missing, will try to show absolute volume")
+        rel <- FALSE
+    } else if(!rel && all(is.na(dvhDF$volume))) {
+        warning("All absolute volumes are missing, will try to show relative volume")
+        rel <- FALSE
+    }
 
-    diag <- if(rel) {                    # relative volume
+    ## check if absolute dose is available
+    isDoseRel <- if(all(is.na(dvhDF$dose))) {
+        warning("All absolute doses are missing, will try to show relative dose")
+        dvhDF$dose <- dvhDF$doseRel
+        TRUE
+    } else {
+        FALSE
+    }
+
+    diag0 <- if(rel) {                    # relative volume
         if(byPat) {
             ggplot(dvhDF, aes_string(x="dose", y="volumeRel",
                                      colour="structure"))
@@ -116,20 +139,31 @@ function(x, cumul=TRUE, byPat=TRUE, patID=NULL, structure=NULL,
         x[[1]]$volumeUnit
     }
 
-    # ggplot2::theme(legend.justification=c(1, 1), legend.position=c(1, 1))
-    diag <- diag + geom_line(size=1.5) +
-        coord_cartesian(xlim=c(0, xMax)) + expand_limits(y=0) +
-        ggtitle(strTitle) +
-        theme_bw() +
-        scale_y_continuous(expand=c(0, 0.6)) +
-        xlab(paste0("Dose [",   x[[1]]$doseUnit,   "]")) +
-        ylab(paste0("Volume [", volUnit, "]"))
-
-    if(show) {
-        print(diag)
+    doseUnit <- if(isDoseRel) {
+        "%"
+    } else {
+        x[[1]]$doseUnit
     }
 
-    return(invisible(diag))
+    diag1 <- diag0 + geom_line(size=1.5)
+    # ggplot2::theme(legend.justification=c(1, 1), legend.position=c(1, 1))
+    diag2 <- if(is.finite(xMax)) {
+        diag1 + coord_cartesian(xlim=c(0, xMax)) + expand_limits(y=0)
+    } else {
+        diag1
+    }
+    
+    diag3 <- diag2 + ggtitle(strTitle) +
+        theme_bw() +
+        scale_y_continuous(expand=c(0, 0.6)) +
+        xlab(paste0("Dose [",   doseUnit, "]")) +
+        ylab(paste0("Volume [", volUnit,  "]"))
+
+    if(show) {
+        print(diag3)
+    }
+
+    return(invisible(diag3))
 }
 
 ## x is a DVH list (1 per id or 1 per structure) of lists
