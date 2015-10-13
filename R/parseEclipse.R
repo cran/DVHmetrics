@@ -67,8 +67,8 @@ parseEclipse <- function(x, planInfo=FALSE, courseAsID=FALSE) {
         tolower(trimWS(elem))
     }
 
-    sStart <- grep("^Structure: [[:alnum:]]", x)   # start of sections
-    sLen   <- diff(c(sStart, length(x)+1))         # length of sections
+    sStart <- grep("^Structure: [[:alnum:][:punct:]]", x) # start of sections
+    sLen   <- diff(c(sStart, length(x)+1))                # length of sections
     if((length(sLen) < 1L) || all(sLen < 1L)) {
         stop("No structures found")
     }
@@ -140,34 +140,56 @@ parseEclipse <- function(x, planInfo=FALSE, courseAsID=FALSE) {
         }
     }
 
-    doseRx0 <- getElem("^Prescribed dose.*:", header)
-    ## check if sum plan
-    doseRx  <- if((length(doseRx0) > 0) && (doseRx0 != "not defined")) {
-        getDose("^Prescribed dose.*:", header)
-    } else {                                        # sum plan
-        ## doseRx is encoded in plan name
-        if(tolower(planInfo) == "doserx") {
-            drx <- sub("^[[:alnum:]]+_([.[:digit:]]+)(GY|CGY)_[[:alnum:]]*", "\\1",
-                       plan, perl=TRUE, ignore.case=TRUE)
-            as.numeric(drx)
-        } else {
-            warning("No info on prescribed dose")
-            NA_real_
-        }
-    }
-
     doseUnit <- getDoseUnit(header)
     if(!grepl("^(GY|CGY)$", doseUnit)) {
         warning("Could not determine dose measurement unit")
         doseUnit <- NA_character_
     }
 
+    doseRx0 <- getElem("^Prescribed dose.*:", header)
+    ## check if sum plan
+    doseRx  <- if((length(doseRx0) > 0) && (doseRx0 != "not defined")) {
+        doseRxUnit <- doseUnit
+        getDose("^Prescribed dose.*:", header)
+    } else {                                        # sum plan
+        ## doseRx is encoded in plan name
+        if(tolower(planInfo) == "doserx") {
+            doseRxUnit <- toupper(sub("^.+_([.[:digit:]]+)(GY|CGY)_.*", "\\2",
+                                      plan, perl=TRUE, ignore.case=TRUE))
+    
+            if(!grepl("^(GY|CGY)$", doseRxUnit)) {
+                warning("Could not determine dose Rx unit")
+                doseRxUnit <- NA_character_
+            }
+
+            drx <- sub("^.+_([.[:digit:]]+)(GY|CGY)_.*", "\\1",
+                       plan, perl=TRUE, ignore.case=TRUE)
+            as.numeric(drx)
+        } else {
+            doseRxUnit <- NA_character_
+            warning("No info on prescribed dose")
+            NA_real_
+        }
+    }
+
     ## extract DVH from one structure section and store in a list
     ## with DVH itself as a matrix
     getDVH <- function(strct, info) {
         ## extract information from info list
-        doseRx    <- info$doseRx
-        isoDoseRx <- info$isoDoseRx
+        doseUnit   <- info$doseUnit
+        doseRx     <- info$doseRx
+        doseRxUnit <- info$doseRxUnit
+        isoDoseRx  <- info$isoDoseRx
+
+        ## check if we have dose Rx
+        ## if so, does it have the same unit as doseUnit -> convert
+        if(!is.na(doseUnit) && !is.na(doseRxUnit)) {
+            if((doseUnit == "GY") && (doseRxUnit == "CGY")) {
+                doseRx <- doseRx/100
+            } else if((doseUnit == "CGY") && (doseRxUnit == "GY")) {
+                doseRx <- doseRx*100
+            }
+        }
 
         ## extract structure, volume, dose min, max, mean, median and sd
         structure <- getElem("^Structure.*:", strct)
@@ -284,21 +306,23 @@ parseEclipse <- function(x, planInfo=FALSE, courseAsID=FALSE) {
                     quadrant=info$quadrant,
                     structure=structure,
                     structVol=structVol,
-                    doseUnit=info$doseUnit,
+                    doseUnit=doseUnit,
                     volumeUnit=volumeUnit,
                     doseMin=doseMin,
                     doseMax=doseMax,
                     doseRx=doseRx,
+                    doseRxUnit=doseRxUnit,
                     isoDoseRx=isoDoseRx,
                     doseAvg=doseAvg,
                     doseMed=doseMed,
                     doseMode=doseMode,
                     doseSD=doseSD)
 
-        ## convert differential DVH to cumulative
+        ## convert differential DVH (per unit dose) to cumulative
         ## and add differential DVH separately
         if(info$DVHtype == "differential") {
-            DVH$dvh     <- convertDVH(dvh, toType="cumulative", toDoseUnit="asis")
+            DVH$dvh     <- convertDVH(dvh, toType="cumulative",
+                                      toDoseUnit="asis", perDose=TRUE)
             DVH$dvhDiff <- dvh
         }
 
@@ -310,7 +334,8 @@ parseEclipse <- function(x, planInfo=FALSE, courseAsID=FALSE) {
     ## list of DVH data frames with component name = structure
     info <- list(patID=patID, patName=patName, date=DVHdate,
                  DVHtype=DVHtype, plan=plan, course=course, quadrant=quadrant,
-                 doseRx=doseRx, isoDoseRx=isoDoseRx, doseUnit=doseUnit)
+                 doseRx=doseRx, doseRxUnit=doseRxUnit,
+                 isoDoseRx=isoDoseRx, doseUnit=doseUnit)
     dvhL <- lapply(structList, getDVH, info=info)
     dvhL <- Filter(Negate(is.null), dvhL)
     names(dvhL) <- sapply(dvhL, function(y) y$structure)

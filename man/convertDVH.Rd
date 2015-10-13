@@ -37,15 +37,11 @@ convertDVH(x, toType=c("asis", "cumulative", "differential"),
   \item{toType}{\code{character}. Convert the DVH to this type. \code{"asis"} keeps the current DVH type.}
   \item{toDoseUnit}{\code{character}. Convert the DVH to this dose unit. \code{"asis"} keeps the current dose unit.}
   \item{interp}{\code{character}. Interpolation method for the differential DVH. \code{"asis"} and \code{"linear"} for no interpolation. \code{"spline"} for FMM spline interpolation using \code{\link[stats]{splinefun}}, \code{"ksmooth"} for local polynomial regression using \code{\link[KernSmooth]{locpoly}} with kernel bandwidth chosen by the direct plug-in method using \code{\link[KernSmooth]{dpill}}, \code{"smoothSpl"} for a smoothing spline using \code{\link[stats]{smooth.spline}}, with the smoothing parameter chosen by generalized crossvalidation.}
-  \item{nodes}{\code{numeric}. Minimum number of nodes to use in interpolation. Number of nodes is kept as is for \code{NULL} or if larger than \code{nodes}.}
+  \item{nodes}{\code{numeric}. Minimum number of nodes to use in interpolation for method \code{"ksmooth"}. Number of available nodes is kept as is for \code{NULL} or if larger than \code{nodes}.}
   \item{perDose}{\code{logical}. Are the differential DVH volume values per unit dose?}
 }
 \value{Depending on the input, an object of class \code{matrix}, \code{DVHs}, \code{DVHLst}, or \code{DVHLstLst}.}
 \seealso{
-\code{\link[KernSmooth]{dpill}},
-\code{\link[KernSmooth]{locpoly}},
-\code{\link[stats]{splinefun}},
-\code{\link[stats]{smooth.spline}},
 \code{\link[DVHmetrics]{readDVH}},
 \code{\link[DVHmetrics]{showDVH}}
 }

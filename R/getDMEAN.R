@@ -1,18 +1,21 @@
 getDMEAN <-
-function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
+function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl"), nodes=5001L) {
     UseMethod("getDMEAN")
 }
 
 getDMEAN.DVHs <-
-function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
+function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl"), nodes=5001L) {
     interp <- match.arg(interp)
+    nodes  <- max(nodes, nrow(x$dvh))
 
-    ## differential DVH
-    xD <- convertDVH(x, toType="differential", interp=interp, nodes=5001L)
-
+    ## median from cumulative DVH
     doseMed <- if(interp == "linear") {
-        tryCatch(approx(x$dvh[ , "volumeRel"], x$dvh[ , "dose"], 50, method="linear", rule=1, ties=max)$y,
-                 error=function(e) return(NA_real_))
+        res <- try(approx(x$dvh[ , "volumeRel"], x$dvh[ , "dose"], 50, method="linear", rule=1, ties=max)$y)
+        if(!inherits(res, "try-error")) {
+            res
+        } else {
+            NA_real_
+        }
     } else if(interp == "spline") {
         sfun <- try(splinefun(x$dvh[ , "volumeRel"], x$dvh[ , "dose"], method="monoH.FC", ties=max))
         if(!inherits(sfun, "try-error")) {
@@ -22,13 +25,8 @@ function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
         }
     } else if(interp == "ksmooth") {
         bw <- try(KernSmooth::dpill(x$dvh[ , "volumeRel"], x$dvh[ , "dose"]))
-        bw <- if(!inherits(bw, "try-error")) {
-            bw
-        } else {
-            NA_real_
-        }
-        sm <- try(KernSmooth::locpoly(x$dvh[ , "volumeRel"], x$dvh[ , "dose"], bandwidth=bw,
-                                  gridsize=5001L, degree=3))
+        sm <- try(KernSmooth::locpoly(x$dvh[ , "volumeRel"], x$dvh[ , "dose"],
+                                      bandwidth=bw, gridsize=nodes, degree=3))
         if(!inherits(sm, "try-error")) {
             idx <- which.min(abs(sm$x-50))
             sm$y[idx]
@@ -46,30 +44,36 @@ function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
         NA_real_
     }
 
+    ## min, max, mean, sd from differential DVH
+    # if(interp != "linear") {
+    #     warning("Interpolation set to linear for min, max, mean, sd, mode")
+    #     interp <- "linear"
+    # }
+
+    ## convert to differential DVH - but not per unit dose
+    xDiff <- convertDVH(x, toType="differential", interp=interp, nodes=nodes, perDose=FALSE)
+
     ## dose category mid-points
-    doseMidPt <- xD$dvh[ , "dose"]
-    ## differential DVH -> volume is per Gy -> mult with bin-width
-    binW      <- diff(c(-xD$dvh[1, "dose"], xD$dvh[ , "dose"]))
-    volRelBin <- xD$dvh[ , "volumeRel"]*binW
+    doseMidPt <- xDiff$dvhDiff[ , "dose"]
+    volRel    <- xDiff$dvhDiff[ , "volumeRel"]
 
     ## available volume
-    volume <- if(!all(is.na(xD$dvh[ , "volume"]))) {
-        xD$dvh[ , "volume"]
+    volume <- if(!all(is.na(xDiff$dvhDiff[ , "volume"]))) {
+        xDiff$dvhDiff[ , "volume"]
     } else {
-        xD$dvh[ , "volumeRel"]
+        xDiff$dvhDiff[ , "volumeRel"]
     }
 
-    doseMin <- min(xD$dvh[volume > 0, "dose"])
-    doseMax <- max(xD$dvh[volume > 0, "dose"])
-    doseAvg <- sum(doseMidPt*volRelBin/100)
-    ## doseAvg <- sum(doseMidPt*(-1)*diff(x$dvh[, "volumeRel"]/100))
-    doseSD  <- sqrt(sum(doseMidPt^2*volRelBin/100) - doseAvg^2)
+    doseMin <- min(xDiff$dvhDiff[volume > 0, "dose"])
+    doseMax <- max(xDiff$dvhDiff[volume > 0, "dose"])
+    doseAvg <- sum(doseMidPt*volRel/100)
+    doseSD  <- sqrt(sum(doseMidPt^2*volRel/100) - doseAvg^2)
 
     ## for mode, abs or rel volume does not matter
-    doseMode <- if(!all(is.na(xD$dvh[ , "volume"]))) {
-        xD$dvh[which.max(xD$dvh[ , "volume"]),    "dose"]
-    } else if(!all(is.na(xD$dvh[ , "volumeRel"]))) {
-        xD$dvh[which.max(xD$dvh[ , "volumeRel"]), "dose"]
+    doseMode <- if(!all(is.na(xDiff$dvhDiff[ , "volume"]))) {
+        xDiff$dvhDiff[which.max(xDiff$dvhDiff[ , "volume"]),    "dose"]
+    } else if(!all(is.na(xDiff$dvhDiff[ , "volumeRel"]))) {
+        xDiff$dvhDiff[which.max(xDiff$dvhDiff[ , "volumeRel"]), "dose"]
     } else {
         NA_real_
     }
@@ -108,16 +112,18 @@ function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
 }
 
 getDMEAN.DVHLst <-
-function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
-    ml <- Map(getDMEAN, x, interp=list(interp))
+function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl"), nodes=5001L) {
+    interp <- match.arg(interp)
+    ml <- Map(getDMEAN, x, interp=interp, nodes=nodes)
     df <- do.call("rbind", ml)
     rownames(df) <- NULL
     df
 }
 
 getDMEAN.DVHLstLst <-
-function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl")) {
-    ml <- Map(getDMEAN, x, interp=list(interp))
+function(x, interp=c("linear", "spline", "ksmooth", "smoothSpl"), nodes=5001L) {
+    interp <- match.arg(interp)
+    ml <- Map(getDMEAN, x, interp=interp, nodes=nodes)
     df <- do.call("rbind", ml)
     rownames(df) <- NULL
     df

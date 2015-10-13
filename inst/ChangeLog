@@ -1,6 +1,24 @@
-$Date: 2015-08-05 09:25:29 +0000 (Wed, 05 Aug 2015) $
+$Date: 2015-10-12 13:25:29 +0000 (Tue, 13 Oct 2015) $
 
 DVHMETRICS RELEASE VERSIONS at http://cran.r-project.org/
+
+Version 0.3.3 (October 13, 2015)
+    * readDVH()
+      - add support for RayStation (thanks: Michael R. Young)
+      - fix bug: version 0.3.1 broke reading Cadplan files
+      - fix bug: correctly convert Cadplan and Monaco
+        differential DVHs to cumulative DVHs
+        (unlike Eclipse, they are not per unit dose)
+      - allow structure names with leading non-alphanumeric
+        characters
+    * getDMEAN()
+      - fix bug: version 0.3.1 broke DMEAN, DMIN, DMAX, DSD for
+        DVHs where these metrics were not exported from the TPS
+    * convertDVH()
+      - fix bug: if option interp was not set, different
+        interpolation methods were used for different IDs when
+        converting DVHLstLst objects
+      - fix bug: correctly scale differential DVH for perDose=FALSE
 
 Version 0.3.1 (August 05, 2015)
     * DESCRIPTION, NAMESPACE

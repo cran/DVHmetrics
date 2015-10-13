@@ -28,7 +28,7 @@ Source code at: [github.com/dwoll/DVHshiny/](https://github.com/dwoll/DVHshiny/)
 
 #### Acknowledgements
 
-Thanks to Marcus Stockinger for testing and feedback, to Sandra Bührdel, Hannes Rennau, Ulrich Wolf, Bjorne Riis and Nico Banz for sample DVH files.
+Thanks to Marcus Stockinger for testing and feedback, to Sandra Bührdel, Hannes Rennau, Ulrich Wolf, Bjorne Riis, Nico Banz, and Michael R. Young for sample DVH files.
 Created with the [Shiny](http://shiny.rstudio.com/) web application framework powered by [RStudio](http://www.rstudio.com/).
 Uses functionality provided by the R packages [ggplot2](http://cran.r-project.org/package=ggplot2), [reshape2](http://cran.r-project.org/package=reshape2), [grid](http://cran.r-project.org/package=grid), and [KernSmooth](http://cran.r-project.org/package=KernSmooth).
 
@@ -39,7 +39,7 @@ R Foundation for Statistical Computing, Vienna, Austria.
 [http://www.R-project.org/](http://www.R-project.org/)
 
 RStudio Inc. (2015). shiny: Web Application Framework for R.  
-R package version 0.12.1.  
+R package version 0.12.2.  
 [http://CRAN.R-project.org/package=shiny](http://CRAN.R-project.org/package=shiny)
 
 Wand, M (2015). KernSmooth: Functions for Kernel Smoothing Supporting Wand & Jones (1995).  
