@@ -49,7 +49,8 @@ getMetric(dataMZ, metric="D5cc", structure="HEART", sortBy="observed")
 getMetric(dataMZ, metric=c("D10%", "V5Gy"),
           structure=c("AMYOC", "VALVE"),
           patID="23",
-          sortBy=c("metric", "observed"))
+          sortBy=c("metric", "observed"),
+          fixed=FALSE)
 
 ## ----cMetrics5------------------------------------------------------
 getMetric(dataMZ, metric=c("DMEAN", "D5cc"), structure="HEART",
@@ -85,6 +86,11 @@ getEUD(dataMZ[[1]], EUDa=2)
 # this is just for demonstration purposes
 getNTCP(dataMZ[[1]], NTCPtd50=40, NTCPm=0.6, NTCPn=0.5, NTCPtype="probit")
 
+## ----cPointWise1----------------------------------------------------
+# point-wise mean and SD for structure HEART over all patients
+m <- getMeanDVH(dataMZ, fun=list(M=mean, SD=sd), byPat=FALSE, structure="HEART")
+head(m)
+
 ## ----cPlots1, out.width='3in'---------------------------------------
 showDVH(dataMZ, byPat=TRUE)
 
@@ -92,14 +98,18 @@ showDVH(dataMZ, byPat=TRUE)
 showDVH(dataMZ, byPat=FALSE, patID=c("P123", "P234"))
 
 ## ----cPlots3, out.width='3in'---------------------------------------
-## match strcuture containing "VALVE" and "AMYOC"
+# match structures containing "VALVE" and "AMYOC"
 showDVH(dataMZ, cumul=FALSE, rel=FALSE,
-        structure=c("VALVE", "AMYOC"))
+        structure=c("VALVE", "AMYOC"), fixed=FALSE)
 
 ## ----cPlots4, out.width='3in'---------------------------------------
-## just save the diagram but don't show it
+# just save the diagram but don't show it
 dvhPlot <- showDVH(dataMZ, structure=c("HEART", "AOVALVE", "AVNODE"),
                    rel=FALSE, thresh=0.001, show=FALSE)
+
+## ----cPlots5, out.width='3in'---------------------------------------
+# add point-wise mean DVH and 1 SD/2 SD regions
+showDVH(dataMZ, structure="HEART", byPat=FALSE, addMSD=TRUE)
 
 ## ----cPlotsSave, eval=FALSE-----------------------------------------
 #  saveDVH(dvhPlot, file="c:/folder/dvh.pdf", width=7, height=5)

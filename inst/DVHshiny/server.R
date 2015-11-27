@@ -145,7 +145,7 @@ shinyServer(function(input, output) {
         } else {
             NULL
         }
-        interp  <- c("linear", "spline", "ksmooth")[as.numeric(input$metrInterp)]
+        interp  <- "linear" # c("linear", "spline", "ksmooth")[as.numeric(input$metrInterp)]
         EUDa    <- if(input$metrEUDa  != "") { as.numeric(input$metrEUDa)  } else { NULL }
         EUDfd   <- if(input$metrEUDfd != "") { as.numeric(input$metrEUDfd) } else { NULL }
         EUDab   <- if(input$metrEUDab != "") { as.numeric(input$metrEUDab) } else { NULL }
@@ -165,8 +165,8 @@ shinyServer(function(input, output) {
         if(!is.null(dvh)) {
             argL <- list(x=dvh,
                          metric=selMetrics,
-                         patID=paste0("^", selPat, "$"),
-                         structure=paste0("^", selStruct, "$"),
+                         patID=selPat,
+                         structure=selStruct,
                          sortBy=sortBy,
                          interp=interp,
                          EUDa=EUDa, EUDfd=EUDfd, EUDab=EUDab,
@@ -211,7 +211,8 @@ shinyServer(function(input, output) {
             } else {
                 NULL
             }
-            interp  <- c("linear", "spline", "ksmooth")[as.numeric(input$metrInterp)]
+
+            interp  <- "linear"
             EUDa    <- if(input$metrEUDa  != "") { as.numeric(input$metrEUDa)  } else { NULL }
             EUDfd   <- if(input$metrEUDfd != "") { as.numeric(input$metrEUDfd) } else { NULL }
             EUDab   <- if(input$metrEUDab != "") { as.numeric(input$metrEUDab) } else { NULL }
@@ -230,8 +231,8 @@ shinyServer(function(input, output) {
             }
             argL <- list(x=dvh,
                          metric=selMetrics,
-                         patID=paste0("^", selPat, "$"),
-                         structure=paste0("^", selStruct, "$"),
+                         patID=selPat,
+                         structure=selStruct,
                          sortBy=sortBy,
                          interp=interp,
                          EUDa=EUDa, EUDfd=EUDfd, EUDab=EUDab,
@@ -325,10 +326,11 @@ shinyServer(function(input, output) {
                     showDVH(x=x,
                             cumul=cumul,
                             byPat=byPat,
-                            patID=paste0("^", selPat, "$"),
-                            structure=paste0("^", selStruct, "$"),
+                            patID=selPat,
+                            structure=selStruct,
                             thresh=input$plotThreshVol,
-                            rel=rel)
+                            rel=rel,
+                            addMSD=input$plotMSD)
                 }
             })
 
@@ -377,10 +379,11 @@ shinyServer(function(input, output) {
             argL <- list(x=x,
                          cumul=cumul,
                          byPat=byPat,
-                         patID=paste0("^", selPat, "$"),
-                         structure=paste0("^", selStruct, "$"),
+                         patID=selPat,
+                         structure=selStruct,
                          thresh=input$plotThreshVol,
-                         rel=rel)
+                         rel=rel,
+                         addMSD=input$plotMSD)
             pdf(file, width=7, height=5)
             do.call(showDVH, argL)
             dev.off()
@@ -392,8 +395,8 @@ shinyServer(function(input, output) {
         argL <- list(x=dvh,
                      cumul=cumul,
                      byPat=byPat,
-                     patID=paste0("^", selPat, "$"),
-                     structure=paste0("^", selStruct, "$"),
+                     patID=selPat,
+                     structure=selStruct,
                      thresh=thresh,
                      rel=rel)
         jpeg(fName, quality=100, width=700, height=500)
@@ -409,6 +412,7 @@ shinyServer(function(input, output) {
             rel    <- input$plotPlotVol == "1"
             cumul  <- input$plotType    == "1"
             thresh <- input$plotThreshVol
+            addMSD <- input$plotMSD
             x <- if(byPat) {
                 dvh$DVH
             } else {
@@ -433,7 +437,8 @@ shinyServer(function(input, output) {
                 selPatI    <- if(byPat) { selPat[i] } else { selPat }
                 selStructI <- if(byPat) { selStruct } else { selStruct[i] }
                 makeDVHJPG(fN, dvh=x, byPat=byPat, rel=rel, cumul=cumul,
-                           selPat=selPatI, selStruct=selStructI, thresh=thresh)
+                           selPat=selPatI, selStruct=selStructI,
+                           addMSD=addMSD, thresh=thresh)
             }
 
             zip(zipfile=file, files=fNames)
@@ -442,6 +447,39 @@ shinyServer(function(input, output) {
             }
         },
         contentType = "application/zip"
+    )
+
+    output$saveDVHMSD <- downloadHandler(
+        filename=function() { "DVH_M_SD.txt" },
+        content=function(file) {
+            dvh    <- DVH()
+            byPat  <- input$plotByPat   == '1'
+            cumul  <- input$plotType    == '1'
+            x <- if(byPat) {
+                dvh$DVH
+            } else {
+                dvh$DVHbyStruct
+            }
+
+            selPat    <- getStrIDs(dvh$DVH, what="patient")[  as.numeric(input$plotSelPat)]
+            selStruct <- getStrIDs(dvh$DVH, what="structure")[as.numeric(input$plotSelStruct)]
+
+            argL <- list(x=x,
+                         fun=list(mean=mean, median=median, min=min, max=max, sd=sd),
+                         byPat=byPat,
+                         thin=1,
+                         cumul=cumul,
+                         patID=selPat,
+                         structure=selStruct,
+                         interp="linear",
+                         fixed=TRUE)
+            argL   <- Filter(Negate(is.null), argL)
+            DVHMSD <- do.call(getMeanDVH, argL)
+            dec    <- c('1'=".",  '2'=",")[input$saveDVHDec]
+            sep    <- c('1'="\t", '2'=" ", '3'=",", '4'=";")[input$saveDVHSep]
+            write.table(DVHMSD, file=file, dec=dec, sep=sep, row.names=FALSE)
+        },
+        contentType='text/plain' # MIME type
     )
 
     ## reactive conductor
@@ -496,7 +534,7 @@ shinyServer(function(input, output) {
         constr <- DVHconstr()
         dvh    <- DVH()$DVH
         outSel <- constrOutInv[input$constrOut]
-        interp <- c("linear", "spline", "ksmooth")[as.numeric(input$constrInterp)]
+        interp <- "linear" #c("linear", "spline", "ksmooth")[as.numeric(input$constrInterp)]
         EUDa   <- if(input$constrEUDa  != "") { as.numeric(input$constrEUDa)  } else { NULL }
         EUDfd  <- if(input$constrEUDfd != "") { as.numeric(input$constrEUDfd) } else { NULL }
         EUDab  <- if(input$constrEUDab != "") { as.numeric(input$constrEUDab) } else { NULL }
@@ -571,7 +609,7 @@ shinyServer(function(input, output) {
     output$saveConstrTxt <- downloadHandler(
         filename=function() { "constraints.txt" },
         content=function(file) {
-            interp <- c("linear", "spline", "ksmooth")[as.numeric(input$constrInterp)]
+            interp <-"linear"
             EUDa   <- if(input$constrEUDa  != "") { as.numeric(input$constrEUDa)  } else { NULL }
             EUDfd  <- if(input$constrEUDfd != "") { as.numeric(input$constrEUDfd) } else { NULL }
             EUDab  <- if(input$constrEUDab != "") { as.numeric(input$constrEUDab) } else { NULL }

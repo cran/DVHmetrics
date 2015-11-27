@@ -2,6 +2,31 @@ $Date: 2015-10-12 13:25:29 +0000 (Tue, 13 Oct 2015) $
 
 DVHMETRICS RELEASE VERSIONS at http://cran.r-project.org/
 
+Version 0.3.4 (November 27, 2015)
+    * getMeanDVH()
+      - new function that returns point-wise aggregates of
+        several DVHs, by default the mean, median, standard
+        deviation, minimum and maximum of the volumes
+    * showDVH()
+      - add option addMSD to show the point-wise mean DVH
+        as well as shaded areas for point-wise 1-SD and
+        2-SD around the mean
+    * convertDVH()
+      - with toType="asis" and interp="linear", DVHs are
+        interpolated with equally spaced dose values
+    * getMetric(), showDVH()
+      - change default: match supplied IDs and structure names
+        exactly to allow for structures containing '+' signs,
+        use fixed=FALSE for regular expression matching
+    * checkConstraint(), showConstraint()
+      - fix bug: make functions work for files not exported
+        from Eclipse or Cadplan
+      - fix bug: make functions work for DVH files with
+        duplicate rows
+    * getEUD(), getNTCP(), getTCP()
+      - fix bug: version 0.3.1 broke EUD calculation and
+        therefore NTCP/TCP calculation
+
 Version 0.3.3 (October 13, 2015)
     * readDVH()
       - add support for RayStation (thanks: Michael R. Young)
