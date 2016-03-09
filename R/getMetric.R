@@ -141,12 +141,15 @@ function(x, metric, patID, structure,
         }
     }
 
+    ## special metrics that are recognized when prefixed with D, e.g., DMEAN, DEUD
+    specMetr <- getSpecialMetrics()
+
     ## get value for 1 parsed metric
     getVal <- function(pm) {
         if(!pm$valid) {
             return(NA_real_)
         } else if(pm$DV == "D") {              # report a dose
-            if(pm$valRef %in% c("MIN", "MAX", "MEAN", "MEDIAN", "RX", "SD", "EUD", "NTCP", "TCP")) {
+            if(pm$valRef %in% specMetr) {
                 cf <- if(!is.na(pm$unitDV)) {
                     getConvFac(paste0(x$doseUnit, "2", pm$unitDV))
                 } else {
@@ -158,24 +161,39 @@ function(x, metric, patID, structure,
                                   is.null(x$doseMax),
                                   is.null(x$doseAvg),
                                   is.null(x$doseMed),
-                                  is.null(x$doseSD)))) {
+                                  is.null(x$doseSD))) &&
+                            !(pm$valRef %in% c("HI", "EUD", "NTCP", "TCP"))) {
                     getDMEAN(x, interp=interp)
                 } else {
                     x
                 }
 
                 cf *   if(pm$valRef == "MIN") {
-                    mmmrs$doseMin
+                    if(is.null(x$doseMin) || is.na(x$doseMin)) {
+                        mmmrs$doseMin
+                    } else { x$doseMin }
                 } else if(pm$valRef == "MAX") {
-                    mmmrs$doseMax
+                    if(is.null(x$doseMax) || is.na(x$doseMax)) {
+                        mmmrs$doseMax
+                    } else { x$doseMax }
                 } else if(pm$valRef == "MEAN") {
-                    mmmrs$doseAvg
+                    if(is.null(x$doseAvg) || is.na(x$doseAvg)) {
+                        mmmrs$doseAvg
+                    } else { x$doseAvg }
                 } else if(pm$valRef == "MEDIAN") {
-                    mmmrs$doseMed
-                } else if(pm$valRef == "RX") {
-                    mmmrs$doseRx
+                    if(is.null(x$doseMed) || is.na(x$doseMed)) {
+                        mmmrs$doseMed
+                    } else { x$doseMed }
                 } else if(pm$valRef == "SD") {
-                    mmmrs$doseSD
+                    if(is.null(x$doseSD) || is.na(x$doseSD)) {
+                        mmmrs$doseSD
+                    } else { x$doseSD }
+                } else if(pm$valRef == "RX") {
+                    if(is.null(x$doseRx) || is.na(x$doseRx)) {
+                        NA_real_
+                    } else { x$doseRx }
+                } else if(pm$valRef == "HI") {
+                    getHI(x, ...)$HI
                 } else if(pm$valRef == "EUD") {
                     getEUD(x, ...)$EUD
 				} else if(pm$valRef == "NTCP") {

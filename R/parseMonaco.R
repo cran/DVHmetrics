@@ -61,9 +61,17 @@ parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE) {
 #     Sys.setlocale("LC_TIME", lct)
 
     DVHspan <- x[4:(length(x)-2)]
-    con <- textConnection(DVHspan)
-    DVHall <- read.table(con, header=FALSE, stringsAsFactors=FALSE)
-    close(con)
+    DVHlen  <- length(DVHspan)    # last element is blank
+    ## problem: spaces in structure names -> parse manually
+    # DVHall <- read.table(text=, header=FALSE,
+    #                      stringsAsFactors=FALSE, comment.char="")
+    pat <- "^(.+?)[[:blank:]]+([.[:digit:]]+)[[:blank:]]+([.[:digit:]]+)$"
+    structs <- sub(pat, "\\1", DVHspan)[-DVHlen]
+    doses   <- as.numeric(sub(pat, "\\2", DVHspan)[-DVHlen])
+    volumes <- as.numeric(sub(pat, "\\3", DVHspan)[-DVHlen])
+    DVHall  <- data.frame(structure=structs, dose=doses, volume=volumes,
+                          stringsAsFactors=FALSE)   
+
     names(DVHall) <- if(isDoseRel) {
         if(isVolRel) {
             c("structure", "doseRel", "volumeRel")
@@ -98,7 +106,12 @@ parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE) {
 
         if(!("volumeRel" %in% haveVars)) {
             isVolRel <- FALSE
-            dvh <- cbind(dvh, volumeRel=NA_real_)
+            ## assume max volume is structure volume
+            volMax <- max(dvh[ , "volume"])
+            volRel <- 100*(dvh[ , "volume"] / volMax)
+            warning("Structure volume is assumed to be max available volume")
+            dvh <- cbind(dvh, volumeRel=volRel)
+            ## dvh <- cbind(dvh, volumeRel=NA_real_)
         }
 
         if(!("dose" %in% haveVars)) {
@@ -106,7 +119,11 @@ parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE) {
         }
 
         if(!("doseRel" %in% haveVars)) {
-            dvh <- cbind(dvh, doseRel=NA_real_)
+            doseRel <- if(!is.null(info$doseRx) && !is.na(info$doseRx)) {
+                100*(dvh[ , "dose"] / info$doseRx)
+            } else { NA_real_ }
+            
+            dvh <- cbind(dvh, doseRel=doseRel)
         }
 
         ## check if dose is increasing
@@ -125,8 +142,8 @@ parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE) {
                     structVol=NA_real_,
                     doseUnit=info$doseUnit,
                     volumeUnit=info$volumeUnit,
-                    doseRx=doseRx,
-                    isoDoseRx=isoDoseRx,
+                    doseRx=info$doseRx,
+                    isoDoseRx=info$isoDoseRx,
                     doseMin=NA_real_,
                     doseMax=NA_real_,
                     doseAvg=NA_real_,

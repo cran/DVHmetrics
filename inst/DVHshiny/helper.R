@@ -1,9 +1,12 @@
+library(shiny)
+library(DVHmetrics)
+library(markdown)
+
 trimWS <- function(x, side="both")  {
     side <- match.arg(side, c("left", "right", "both"))
     pattern <- switch(side, left="^\\s+", right="\\s+$", both="^\\s+|\\s+$")
     gsub(pattern, "", x)
 }
-
 
 getStrIDs <- function(x, what=c("structure", "patient"), choices=FALSE) {
     UseMethod("getStrIDs")
