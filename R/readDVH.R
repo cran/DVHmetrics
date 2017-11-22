@@ -1,14 +1,14 @@
 #####---------------------------------------------------------------------------
 ## returns a list (1 component per DVH file) of lists (1 component = 1 list per structure)
 readDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan", "Pinnacle",
-                              "Monaco", "HiArt", "RayStation"),
-                    planInfo=FALSE, courseAsID=FALSE, add) {
+                              "Monaco", "HiArt", "RayStation", "ProSoma", "PRIMO"),
+                    planInfo=FALSE, courseAsID=FALSE, add, ...) {
     type <- match.arg(type)
 
     dvhRawL <- if(missing(x)) {
-        parseDVH(type=type)
+        parseDVH(type=type, ...)
     } else {
-        parseDVH(x, type=type)
+        parseDVH(x, type=type, ...)
     }
     
     parseFun <- switch(type,
@@ -18,7 +18,9 @@ readDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan", "Pinnacle",
                        Pinnacle=mergePinnaclePat,
                        Monaco=parseMonaco,
                        HiArt=parseHiArt,
-                       RayStation=parseRayStation)
+                       RayStation=parseRayStation,
+                       ProSoma=parseProSoma,
+                       PRIMO=parsePRIMO)
     
     dvhLL <- if(length(dvhRawL) >= 1L) {
         res <- Map(parseFun, dvhRawL, planInfo=planInfo, courseAsID=courseAsID)
@@ -28,9 +30,9 @@ readDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan", "Pinnacle",
         NULL
     }
     
-    ## for HiArt files, no patient ID is given
+    ## for HiArt, ProSoma and PRIMO files, no patient ID is given
     ## -> copy the random ID generated in parseDVH() to all DVHs
-    if(type == "HiArt") {
+    if(type %in% c("HiArt", "ProSoma", "PRIMO")) {
         setID <- function(dvhL, id) {
             dvhLOut <- lapply(dvhL, function(y) {
                 y$patID <- id
@@ -42,7 +44,7 @@ readDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan", "Pinnacle",
             dvhLOut
         }
         
-        dvhLL <- lapply(dvhLL, setID, id=names(dvhLL))
+        dvhLL <- Map(setID, dvhLL, id=names(dvhLL))
     }
 
     ## for courseAsID

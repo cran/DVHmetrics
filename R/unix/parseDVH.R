@@ -1,9 +1,11 @@
 ## under Unix-like OS, we don't have choose.files(), choose.dir() and Filters
 ## TODO: fix for fPath=NA -> no initial /
 parseDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan",
-                               "Pinnacle", "Monaco", "HiArt", "RayStation")) {
+                               "Pinnacle", "Monaco", "HiArt", "RayStation",
+                               "ProSoma", "PRIMO"), ...) {
     type <- match.arg(type)
-
+    dots <- list(...)
+    
     ## name them using patient IDs
     getPatID <- function(txt) {
         if(type == "Monaco") {
@@ -13,10 +15,14 @@ parseDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan",
             IDline <- txt[grep("^(#PatientId):.+", txt)]
             IDres  <- sub("^.+?:[[:blank:]]*([[:alnum:][:punct:][:blank:]]+$)", "\\1", IDline, perl=TRUE)
             collWS(trimWS(IDres, side="both"))
-        } else if(type == "HiArt") {
+        } else if(type %in% c("HiArt", "PRIMO")) {
             gsub("[^a-z0-9]", "\\1", tempfile(pattern="", tmpdir=""))
+        } else if(type == "ProSoma") {
+            patName <- paste(substr(trimWS(rev(strsplit(txt[1], ",")[[1]])), 1, 1), collapse="")
+            randStr <- gsub("[^a-z0-9]", "\\1", tempfile(pattern="", tmpdir=""))
+            paste(randStr, patName, sep="_")
         } else if(type != "Pinnacle") {
-            IDline <- txt[grep("^(Patient ID|Case)[[:blank:]]*:", txt)]
+            IDline <- txt[grep("^(Patient ID|Case|# Project)[[:blank:]]*:", txt)]
             IDres  <- sub("^.+?:[[:blank:]]+([[:alnum:][:punct:][:blank:]]+$)", "\\1", IDline, perl=TRUE)
             collWS(trimWS(IDres, side="both"))
         } else {
@@ -32,12 +38,18 @@ parseDVH <- function(x, type=c("Eclipse", "Cadplan", "Masterplan",
         }
     }
 
+    readFile <- function(f) {
+        con <- file(f, "r", ...)
+        on.exit(close(con))
+        readLines(con=con)
+    }
+
     DVHraw <- if(type != "Pinnacle") {
         files <- Sys.glob(x)
         files <- Filter(function(y) file_test(op="-f", y), files)
         if(length(files) >= 1L) {
             ## read in files into a list of character vectors
-            lapply(files, readLines)
+            lapply(files, readFile)
         } else {
             character(0)
         }

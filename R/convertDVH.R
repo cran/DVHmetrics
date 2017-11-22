@@ -4,7 +4,8 @@ convertDVH <-
 function(x, toType=c("asis", "cumulative", "differential"),
          toDoseUnit=c("asis", "GY", "CGY"),
          interp=c("asis", "linear"),
-         nodes=NULL, rangeD=NULL, perDose=TRUE) {
+         nodes=NULL, rangeD=NULL,
+         perDose=TRUE) {
     UseMethod("convertDVH")
 }
 
@@ -13,11 +14,12 @@ convertDVH.matrix <-
 function(x, toType=c("asis", "cumulative", "differential"),
          toDoseUnit=c("asis", "GY", "CGY"),
          interp=c("asis", "linear"),
-         nodes=NULL, rangeD=NULL, perDose=TRUE) {
+         nodes=NULL, rangeD=NULL,
+         perDose=TRUE) {
     toType     <- match.arg(toType)
     toDoseUnit <- match.arg(toDoseUnit)
     interp     <- match.arg(interp)
-    
+
     if(!is.null(nodes)) { stopifnot(nodes > 2L) }
 
     ## matrix may include duplicate rows
@@ -75,11 +77,11 @@ function(x, toType=c("asis", "cumulative", "differential"),
     
     ## convert dose unit
     doseConv <- if(toDoseUnit == "asis") {
-        dose              ## nothing to do
-    } else if(toDoseUnit == "GY") {
-        dose / 100        ## cGy to Gy
-    } else if(toDoseUnit == "CGY") {
-        dose * 100        ## Gy to cGy
+        dose                          # nothing to do
+    } else if(toDoseUnit == "GY") {   # assume dose is given in cGy
+        dose / 100                    # cGy to Gy
+    } else if(toDoseUnit == "CGY") {  # assume dose is given in Gy
+        dose * 100                    # Gy to cGy
     }
 
     ## convert DVH type
@@ -102,7 +104,7 @@ function(x, toType=c("asis", "cumulative", "differential"),
                 "differential"
             }
             
-            if((DVHtype == "differential") && !perDose) {
+            if((DVHtype == "differential") && (perDose == FALSE)) {
                 ## if perDose == FALSE: normalize -> interpolate -> re-normalize
                 binW         <- diff(c(-doseConv[1], doseConv))
                 volumeNew    <- -diff(volume)    / binW
@@ -115,7 +117,7 @@ function(x, toType=c("asis", "cumulative", "differential"),
             doseNew    <- sm[ , "dose"]
             doseRelNew <- sm[ , "doseRel"]
 
-            if((DVHtype == "differential") && !perDose) {
+            if((DVHtype == "differential") && (perDose == FALSE)) {
                 ## re-normalize to non-per-dose volume
                 ## start bin at 0 because no out-of-range interpolation
                 binW         <- diff(c(0, doseConv))
@@ -147,12 +149,12 @@ function(x, toType=c("asis", "cumulative", "differential"),
         doseNew    <- c(doseMidPt,    doseConv[N] + doseCatHW[N-1])
         doseRelNew <- c(doseRelMidPt, doseRel[N]  + doseRelCatHW[N-1])
         
-        if(perDose) {
+        if(perDose == TRUE) {
             ## differential DVH -> volume is per Gy -> mult with bin-width
             binW         <- diff(c(-doseConv[1], doseConv))
             volumeBin    <- volume*binW
             volumeRelBin <- volumeRel*binW
-        } else {
+        } else if(perDose == FALSE) {
             volumeBin    <- volume
             volumeRelBin <- volumeRel
         }
@@ -192,15 +194,15 @@ function(x, toType=c("asis", "cumulative", "differential"),
 
         ## differential DVH -> volume is per Gy -> divide by bin-width
         binW <- 2*doseCatHW
-        volumeNew <- if(perDose) {
+        volumeNew <- if(perDose == TRUE) {
             -diff(volume) / binW
-        } else {
+        } else if(perDose == FALSE) {
             -diff(volume)
         }
 
-        volumeRelNew <- if(perDose) {
+        volumeRelNew <- if(perDose == TRUE) {
             -diff(volumeRel) / binW
-        } else {
+        } else if(perDose == FALSE) {
             -diff(volumeRel)
         }
     }
@@ -214,9 +216,10 @@ convertDVH.DVHs <-
 function(x, toType=c("asis", "cumulative", "differential"),
          toDoseUnit=c("asis", "GY", "CGY"),
          interp=c("asis", "linear"),
-         nodes=NULL, rangeD=NULL, perDose=TRUE) {
-    toType     <- match.arg(toType)
-    toDoseUnit <- match.arg(toDoseUnit)
+         nodes=NULL, rangeD=NULL,
+         perDose=TRUE) {
+    toType       <- match.arg(toType)
+    toDoseUnit   <- match.arg(toDoseUnit)
 
     if(!is.null(nodes)) { stopifnot(nodes > 2) }
 
@@ -232,27 +235,24 @@ function(x, toType=c("asis", "cumulative", "differential"),
         if(!is.null(x$dvhDiff)) {
             DVH$dvhDiff <- convertDVH(x$dvhDiff, toType=toType,
                                       toDoseUnit="asis", interp=interp,
-                                      nodes=nodes, rangeD=rangeD, perDose=perDose)
+                                      nodes=nodes, rangeD=rangeD,
+                                      perDose=perDose)
         }
     } else if((toType == "asis") && (toDoseUnit != "asis") && (interp == "asis")) {
         ## just change dose unit in DVH and remaining dose values
-        cf <- if( (toupper(x$doseUnit) == "CGY") && (toDoseUnit == "GY")) {
-            1/100
-        } else if((toupper(x$doseUnit) == "GY")  && (toDoseUnit == "CGY")) {
-            100
-        } else {
-            NA_real_
-        }
+        cf <- getConvFac(paste0(x$doseUnit, "2", toDoseUnit))
 
         ## cumulative
         DVH$dvh <- convertDVH(x$dvh, toType=toType,
                               toDoseUnit="asis", interp=interp,
-                              nodes=nodes, rangeD=rangeD, perDose=perDose)
+                              nodes=nodes, rangeD=rangeD,
+                              perDose=perDose)
         ## differential
         if(!is.null(x$dvhDiff)) {
             DVH$dvhDiff <- convertDVH(x$dvhDiff, toType=toType,
                                       toDoseUnit="asis", interp=interp,
-                                      nodes=nodes, rangeD=rangeD, perDose=perDose)
+                                      nodes=nodes, rangeD=rangeD,
+                                      perDose=perDose)
         }
 
         DVH$dvh[ , "dose"] <- cf*x$dvh[ , "dose"]
@@ -268,13 +268,7 @@ function(x, toType=c("asis", "cumulative", "differential"),
     } else if((toType == "asis") && (toDoseUnit != "asis") && (interp != "asis")) {
         ## change dose unit in DVH and remaining dose values
         ## and interpolate
-        cf <- if( (toupper(x$doseUnit) == "CGY") && (toDoseUnit == "GY")) {
-            1/100
-        } else if((toupper(x$doseUnit) == "GY")  && (toDoseUnit == "CGY")) {
-            100
-        } else {
-            NA_real_
-        }
+        cf <- getConvFac(paste0(x$doseUnit, "2", toDoseUnit))
 
         DVH$dvh[ , "dose"] <- cf*x$dvh[ , "dose"]
         DVH$doseMin   <- cf*x$doseMin
@@ -292,38 +286,36 @@ function(x, toType=c("asis", "cumulative", "differential"),
             ## from cumulative to differential
             DVH$dvhDiff <- convertDVH(x$dvh, toType=toType,
                                       toDoseUnit="asis", interp=interp,
-                                      nodes=nodes, rangeD=rangeD, perDose=perDose)
+                                      nodes=nodes, rangeD=rangeD,
+                                      perDose=perDose)
         } else {
             ## from differential to cumulative
             if(!is.null(x$dvhDiff)) {
                 DVH$dvh <- convertDVH(x$dvhDiff, toType=toType,
                                       toDoseUnit="asis", interp=interp,
-                                      nodes=nodes, rangeD=rangeD, perDose=perDose)
+                                      nodes=nodes, rangeD=rangeD,
+                                      perDose=perDose)
             } else {
                 warning("No differential DVH found. Left cumulative DVH as is.")
             }
         }
     } else if((toType != "asis") && (toDoseUnit != "asis")) {
         ## change DVH type and dose unit
-        cf <- if( (toupper(x$doseUnit) == "CGY") && (toDoseUnit == "GY")) {
-            1/100
-        } else if((toupper(x$doseUnit) == "GY")  && (toDoseUnit == "CGY")) {
-            100
-        } else {
-            NA_real_
-        }
+        cf <- getConvFac(paste0(x$doseUnit, "2", toDoseUnit))
 
         if(toType == "differential") {
             ## from cumulative to differential
             DVH$dvhDiff <- convertDVH(x$dvh, toType=toType,
                                       toDoseUnit=toDoseUnit, interp=interp,
-                                      nodes=nodes, rangeD=rangeD, perDose=perDose)
+                                      nodes=nodes, rangeD=rangeD,
+                                      perDose=perDose)
         } else {
             ## from differential to cumulative
             if(!is.null(x$dvhDiff)) {
                 DVH$dvh <- convertDVH(x$dvhDiff, toType=toType,
                                       toDoseUnit=toDoseUnit, interp=interp,
-                                      nodes=nodes, rangeD=rangeD, perDose=perDose)
+                                      nodes=nodes, rangeD=rangeD,
+                                      perDose=perDose)
             } else {
                 warning("No differential DVH found. Left cumulative DVH as is.")
             }
@@ -348,16 +340,17 @@ convertDVH.DVHLst <-
 function(x, toType=c("asis", "cumulative", "differential"),
          toDoseUnit=c("asis", "GY", "CGY"),
          interp=c("asis", "linear"),
-         nodes=NULL, rangeD=NULL, perDose=TRUE) {
+         nodes=NULL, rangeD=NULL,
+         perDose=TRUE) {
     toType     <- match.arg(toType)
     toDoseUnit <- match.arg(toDoseUnit)
     interp     <- match.arg(interp)
 
     if(!is.null(nodes)) { stopifnot(nodes > 2L) }
 
-    dvhL <- Map(convertDVH, x, toType=toType, toDoseUnit=toDoseUnit,
-                interp=interp, nodes=list(nodes), rangeD=list(rangeD),
-                perDose=perDose)
+    dvhL <- Map(convertDVH, x, toType=toType,
+                toDoseUnit=toDoseUnit, interp=interp, nodes=list(nodes),
+                rangeD=list(rangeD), perDose=perDose)
     names(dvhL) <- names(x)
     class(dvhL) <- "DVHLst"
     attr(dvhL, which="byPat") <- attributes(x)$byPat
@@ -370,16 +363,17 @@ convertDVH.DVHLstLst <-
 function(x, toType=c("asis", "cumulative", "differential"),
          toDoseUnit=c("asis", "GY", "CGY"),
          interp=c("asis", "linear"),
-         nodes=NULL, rangeD=NULL, perDose=TRUE) {
+         nodes=NULL, rangeD=NULL,
+         perDose=TRUE) {
     toType     <- match.arg(toType)
     toDoseUnit <- match.arg(toDoseUnit)
     interp     <- match.arg(interp)
     
     if(!is.null(nodes)) { stopifnot(nodes > 2L) }
 
-    dvhLL <- Map(convertDVH, x, toType=toType, toDoseUnit=toDoseUnit,
-                 interp=interp, nodes=list(nodes), rangeD=list(rangeD),
-                 perDose=perDose)
+    dvhLL <- Map(convertDVH, x, toType=toType,
+                 toDoseUnit=toDoseUnit, interp=interp, nodes=list(nodes),
+                 rangeD=list(rangeD), perDose=perDose)
     names(dvhLL) <- names(x)
     class(dvhLL) <- "DVHLstLst"
     attr(dvhLL, which="byPat") <- attributes(x)$byPat

@@ -84,10 +84,16 @@ function(x, metric, patID, structure,
         if(type == "relative") {         # given dose is relative
             dose <- x$dvh[ , "doseRel"]
 
+            ## check if we have relative dose
+            if(all(is.na(dose))) {
+                warning("no information on relative dose")
+                return(NA_real_)
+            }
+
             ## check if max dose is smaller than requested % of prescribed dose
             ## do this here -> while there is approx(..., yright=0)
             ## nothing of that sort exists for spline()
-            if(val > 100) {
+            if(val > max(dose)) {
                 warning("max dose is less than requested dose")
                 return(0)
             }
@@ -95,14 +101,25 @@ function(x, metric, patID, structure,
             cf   <- getConvFac(paste0(x$doseUnit, "2", unitRef))
             dose <- cf * x$dvh[ , "dose"]
 
+            ## check if we have absolute dose
+            if(all(is.na(dose))) {
+                warning("no information on absolute dose")
+                return(NA_real_)
+            }
+
             ## check if max dose is smaller than requested % of prescribed dose
             doseMax <- if(!is.na(x$doseMax)) {
                 x$doseMax
             } else {
-                getDMEAN(x)$doseMax
+                m <- try(getDMEAN(x)$doseMax)
+                if(!inherits(m, "try-error")) {
+                    m
+                } else {
+                    NA_real_
+                }
             }
 
-            if(val > (cf * doseMax)) {
+            if(!is.na(doseMax) && !is.na(cf) && (val > (cf * doseMax))) {
                 warning("max dose is less than requested dose")
                 return(0)
             }
@@ -163,7 +180,16 @@ function(x, metric, patID, structure,
                                   is.null(x$doseMed),
                                   is.null(x$doseSD))) &&
                             !(pm$valRef %in% c("HI", "EUD", "NTCP", "TCP"))) {
-                    getDMEAN(x, interp=interp)
+                    m <- try(getDMEAN(x, interp=interp))
+                    if(inherits(m, "try-error")) {
+                        list(doseMin=NA_real_,
+                             doseMax=NA_real_,
+                             doseAvg=NA_real_,
+                             doseMed=NA_real_,
+                             doseSD=NA_real_)
+                    } else {
+                        m
+                    }
                 } else {
                     x
                 }
@@ -205,10 +231,10 @@ function(x, metric, patID, structure,
                     NA_real_
                 }
             } else if(pm$unitRef == "%") {
-                getDose(pm$valRefNum,   type="relative",
+                getDose(pm$valRefNum, type="relative",
                         unitRef=pm$unitRef, unitDV=pm$unitDV)
             } else if(pm$unitRef == "CC") {
-                getDose(pm$valRefNum,   type="absolute",
+                getDose(pm$valRefNum, type="absolute",
                         unitRef=pm$unitRef, unitDV=pm$unitDV)
             } else {
                 warning("Unknown metric reference value")

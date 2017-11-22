@@ -36,10 +36,21 @@ function(x, EUDa, EUDfd=NULL, EUDab=NULL, ...) {
             xD$dvhDiff[ , "dose"]
         }
     
-        volDose <- volume*dose^EUDa / xD$structVol
-        wtMean  <- sum(volDose[volume > 0], na.rm=TRUE)
-        geud    <- wtMean^(1/EUDa)
-    	if(!is.finite(geud)) {
+        volume <- volume[volume >= 0]
+        dose   <- dose[volume >= 0]
+
+        ## numerically unstable with large dose (in cGy) and EUDa
+        # volDose <- (volume / xD$structVol) * (dose^EUDa)
+        # wtMean  <- sum(volDose[volume > 0], na.rm=TRUE)
+        # wtMean  <- weighted.mean(dose^EUDa, w=volume, na.rm=TRUE)
+        # geud    <- wtMean^(1/EUDa)
+        ## rescale dose first, then scale back weighted mean
+        ## https://stackoverflow.com/a/47296640/484139
+        maxVal    <- max((volume/xD$structVol)^(1/EUDa) * dose)
+        doseScale <- dose / maxVal
+        wtMean    <- weighted.mean(doseScale^EUDa, w=volume, na.rm=TRUE)
+        geud      <- maxVal * wtMean^(1/EUDa)
+        if(!is.finite(geud)) {
     		warning("Numerical problems encountered, NA returned")
     		geud <- NA_real_
     	}
