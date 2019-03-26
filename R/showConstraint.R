@@ -38,11 +38,11 @@ function(x, constr, byPat=TRUE, rel=TRUE, guessX=TRUE, guessY=TRUE,
 
     ## restrict x and constr to the same IDs/structures
     xConstrSub <- harmoConstrDVH(x, constr=constr, byPat=byPat)
-    
+
     ## determine dose and volume units in x
     xDoseUnits <- vapply(xConstrSub$x, function(y) y$doseUnit,   character(1))
     xVolUnits  <- vapply(xConstrSub$x, function(y) y$volumeUnit, character(1))
-    
+
     ## parse constraint and convert dose/volume units if necessary
     constrParse <- Map(parseConstraint, xConstrSub$constr,
                        doseUnit=xDoseUnits,
@@ -50,15 +50,23 @@ function(x, constr, byPat=TRUE, rel=TRUE, guessX=TRUE, guessY=TRUE,
 
     ## data frame from parsed constraint list
     cDFL <- lapply(constrParse, function(y) data.frame(y, stringsAsFactors=FALSE))
-    cDF  <- melt(cDFL, id.vars=c("constraint", "valid", "metric", "DV",
-                                 "valRef", "unitRef", "cmp", "unitCmp", "metricInv"),
-                 value.name="valCmp")
-    cDF$variable <- NULL
-    names(cDF)[names(cDF) == "L1"] <- if(byPat) {
-        "structure"
+    ## cDF  <- melt(cDFL, id.vars=c("constraint", "valid", "metric", "DV",
+    ##                              "valRef", "unitRef", "cmp", "unitCmp", "metricInv"),
+    ##              value.name="valCmp")
+    ## cDF$variable <- NULL
+    ## names(cDF)[names(cDF) == "L1"] <- if(byPat) {
+    ##     "structure"
+    ## } else {
+    ##     "patID"
+    ## }
+    cDF <- do.call("rbind", cDFL)
+    if(byPat) {
+        cDF[["structure"]] <- names(cDFL)
     } else {
-        "patID"
+        cDF[["patID"]] <- names(cDFL)
     }
+
+    rownames(cDF) <- NULL
 
     ## distance constraint to closest point on DVH curve
     getMinDstPt <- function(dvh, cnstr) {
@@ -70,8 +78,8 @@ function(x, constr, byPat=TRUE, rel=TRUE, guessX=TRUE, guessY=TRUE,
                    ((cnstr$DV == "V") & (cnstr$unitCmp == "%"))
         doseRel <- ((cnstr$DV == "D") & (cnstr$unitCmp == "%")) |
                    ((cnstr$DV == "V") & (cnstr$unitRef == "%"))
-        
-        dstL <- dvhDistance(dvh, 
+
+        dstL <- dvhDistance(dvh,
                             DV=data.frame(D=Dcoord, V=Vcoord,
                                           volRel=volRel, doseRel=doseRel,
                                           unitRef=cnstr$unitRef, unitCmp=cnstr$unitCmp))
@@ -79,8 +87,11 @@ function(x, constr, byPat=TRUE, rel=TRUE, guessX=TRUE, guessY=TRUE,
     }
 
     minDst   <- Map(getMinDstPt, xConstrSub$x, constrParse)
-    minDstL  <- melt(minDst)
-    minDstDF <- dcast(minDstL, L1 + L2 ~ L3, value.var="value")
+    minDstL  <- melt_dw(minDst)
+    ## minDstDF <- dcast(minDstL, L1 + L2 ~ L3, value.var="value")
+    minDstDF <- reshape(minDstL, direction="wide", v.names="value",
+                        timevar="L3", idvar=c("L1", "L2"))
+    minDstDF <- setNames(minDstDF, gsub("^value\\.(.+)$", "\\1", names(minDstDF)))
     names(minDstDF)[names(minDstDF) == "L1"] <- if(byPat) {
         "structure"
     } else {
@@ -88,7 +99,7 @@ function(x, constr, byPat=TRUE, rel=TRUE, guessX=TRUE, guessY=TRUE,
     }
 
     names(minDstDF)[names(minDstDF) == "L2"] <- "constraint"
-    
+
     ## merge distance to DVH with remaining data
     allDF <- merge(cDF, minDstDF)
 
