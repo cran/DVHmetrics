@@ -2,6 +2,7 @@
 ## parse character vector from Elekta Monaco file
 parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE, ...) {
     planInfo <- as.character(planInfo)
+    dots     <- list(...)
 
     ## extract file header and header info
     header   <- unlist(strsplit(x[1], " [|] "))
@@ -104,13 +105,20 @@ parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE, ...) {
             dvh <- cbind(dvh, volume=NA_real_)
         }
 
+        ## check if structure volume should be assumed
+        ## to be equal to max given volume in DVH
+        structVol <- if(hasName(dots, "volume_from_dvh")) {
+            if((dots[["volume_from_dvh"]] == TRUE) && ("volume" %in% haveVars)) {
+                max(dvh[ , "volume"])
+            }
+        } else {
+            NA_real_
+        }
+
         if(!("volumeRel" %in% haveVars)) {
             isVolRel <- FALSE
-            ## assume max volume is structure volume
-            volMax <- max(dvh[ , "volume"])
-            volRel <- 100*(dvh[ , "volume"] / volMax)
-            warning("Structure volume is assumed to be max available volume")
-            dvh <- cbind(dvh, volumeRel=volRel)
+            volRel <- 100*(dvh[ , "volume"] / structVol)
+            dvh    <- cbind(dvh, volumeRel=volRel)
             ## dvh <- cbind(dvh, volumeRel=NA_real_)
         }
 
@@ -139,7 +147,7 @@ parseMonaco <- function(x, planInfo=FALSE, courseAsID=FALSE, ...) {
                     DVHtype=DVHtype,
                     plan=info$plan,
                     structure=structure,
-                    structVol=NA_real_,
+                    structVol=structVol,
                     doseUnit=info$doseUnit,
                     volumeUnit=info$volumeUnit,
                     doseRx=info$doseRx,

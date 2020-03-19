@@ -30,6 +30,7 @@ shinyServer(function(input, output, session) {
                              type=types[input$DVHtype],
                              # encoding=enc,
                              courseAsID=("DVHcourse" %in% input$DVHreadOpts),
+                             volume_from_dvh=("volume_from_dvh" %in% input$DVHreadOpts),
                              planInfo=plans[input$DVHplanInfo],
                              add=add)
                     } else {
@@ -37,6 +38,7 @@ shinyServer(function(input, output, session) {
                              type=types[input$DVHtype],
                              # encoding=enc,
                              courseAsID=("DVHcourse" %in% input$DVHreadOpts),
+                             volume_from_dvh=("volume_from_dvh" %in% input$DVHreadOpts),
                              planInfo=plans[input$DVHplanInfo])
                     }
                     # argL <- Filter(Negate(is.null), argL)
@@ -202,7 +204,7 @@ shinyServer(function(input, output, session) {
         }
     )
 
-    output$metrics <- renderDataTable({
+    output$metrics <- DT::renderDataTable({
         dvh        <- DVH()$DVH
         sortOpts   <- c('1'="observed", '2'="structure", '3'="metric", '4'="patID")
         splitOpts  <- c('1'="structure", '2'="metric", '3'="patID")
@@ -657,7 +659,7 @@ shinyServer(function(input, output, session) {
         })
     })
 
-    output$constraints <- renderDataTable({
+    output$constraints <- DT::renderDataTable({
         constr <- DVHconstr()
         dvh    <- DVH()$DVH
         outSel <- constrOutInv[input$constrOut]

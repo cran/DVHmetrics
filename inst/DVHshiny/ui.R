@@ -25,7 +25,8 @@ shinyUI(fluidPage(
                                               list("None"=1, "Prescribed dose"=2)),
                                  checkboxGroupInput("DVHreadOpts", label=NULL,
                                                     choices=c("Add to existing data"="DVHadd",
-                                                              "Use Course for ID"="DVHcourse"))),
+                                                              "Use Course for ID"="DVHcourse",
+                                                              "Struct volume from DVH"="volume_from_dvh"))),
                 actionButton("applyData", "Apply"),
                 radioButtons("DVHverbose", "",
                              list("Short info on DVHs"=1,
@@ -217,7 +218,7 @@ shinyUI(fluidPage(
                 ),
                 tabPanel("Metrics",
                     h6("Calculate metrics"),
-                    dataTableOutput("metrics"),
+                    DT::dataTableOutput("metrics"),
                     downloadButton("saveMetrics", "Save as text file"),
                     inputPanel(
                     radioButtons("saveMetrDec", "Decimal separator:",
@@ -240,7 +241,7 @@ shinyUI(fluidPage(
                 ),
                 tabPanel("Check constraints",
                     h6("Check constraints"),
-                    dataTableOutput("constraints"),
+                    DT::dataTableOutput("constraints"),
                     downloadButton("saveConstrTxt", "Save as text file"),
                     inputPanel(
                     radioButtons("saveConstrDec", "Decimal separator:",
