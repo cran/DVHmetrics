@@ -88,8 +88,15 @@ getNTCP(dataMZ[[1]], NTCPtd50=40, NTCPm=0.6, NTCPn=0.5, NTCPtype="probit")
 
 ## ----cPointWise1----------------------------------------------------
 # point-wise mean and SD for structure HEART over all patients
-m <- getMeanDVH(dataMZ, fun=list(M=mean, SD=sd), byPat=FALSE, structure="HEART")
-head(m)
+m1 <- getMeanDVH(dataMZ, fun=list(M=mean, SD=sd), byPat=FALSE, structure="HEART")
+head(m1)
+
+## ----cPointWise2----------------------------------------------------
+# point-wise mean for structure HEART over all patients
+m2 <- getMeanDVH(dataMZ, fun=list(mean), byPat=FALSE, structure="HEART",
+                 returnDVHObj=TRUE)
+
+getMetric(m2, metric="V5GY")
 
 ## ----cPlots1, out.width='3in'---------------------------------------
 showDVH(dataMZ, byPat=TRUE)

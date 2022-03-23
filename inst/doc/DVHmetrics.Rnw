@@ -216,7 +216,7 @@ Function \texttt{getMetric()} calculates freely-defined DVH metrics based on dat
 \item \texttt{"DRX"}: The prescription dose.
 \item \texttt{"DHI"}: The Homogeneity Index according to ICRU 83: (D2\%-D98\%)/D50\%.
 \item \texttt{"DEUD"}: The generalized equivalent uniform dose (gEUD, \citeNP{Niemierko1999,Wu2002}). This can be based on EQD$_{2}$ values if information on the fractionation is provided as well \cite{IAEA2008}.
-\item \texttt{"DNTCP"}: The normal tissue complication probability (NTCP) according to the Lyman \citeyear{Lyman1985} probit model, the Niemierko \citeyear{Niemierko1999} logit model, or the Poisson model (equation (3) in \citeNP{Kallman1992} with gEUD plugged in for $D$). This can be based on EQD$_{2}$ values if information on the fractionation is provided as well.
+\item \texttt{"DNTCP"}: The normal tissue complication probability (NTCP) according to the Lyman \citeyear{Lyman1985} probit model, the Niemierko \citeyear{Niemierko1999} logit model, the Poisson model (equations (1) to (3) in \citeNP{Kallman1992} with gEUD plugged in for $D$), or the relative seriality model (equation (18)). This can be based on EQD$_{2}$ values if information on the fractionation is provided as well.
 \item \texttt{"DTCP"}: The tumor control probability (TCP) according to the same models as NTCP.
 \end{itemize}
 \item A \emph{free} DVH metric is a character string which has three mandatory elements and one optional element in the following order:
@@ -389,8 +389,18 @@ Function \texttt{getMeanDVH()} returns the point-wise mean and median DVH with t
 
 <<cPointWise1>>=
 # point-wise mean and SD for structure HEART over all patients
-m <- getMeanDVH(dataMZ, fun=list(M=mean, SD=sd), byPat=FALSE, structure="HEART")
-head(m)
+m1 <- getMeanDVH(dataMZ, fun=list(M=mean, SD=sd), byPat=FALSE, structure="HEART")
+head(m1)
+@
+
+When using option \texttt{returnDVHObj=TRUE}, the function returns a DVH object that behaves like a regular DVH, and can be used in functions such as \texttt{showDVH()} or \texttt{getMetric()}
+
+<<cPointWise2>>=
+# point-wise mean for structure HEART over all patients
+m2 <- getMeanDVH(dataMZ, fun=list(mean), byPat=FALSE, structure="HEART",
+                 returnDVHObj=TRUE)
+
+getMetric(m2, metric="V5GY")
 @
 
 %%%%---------------------------------------------------------------------------
